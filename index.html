@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>동행 기록 멘토링</title>
+<meta name="description" content="특수교육학부 멘토-멘티 1:1 학습 점검 웹앱">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<!--HEAD-END-->
+<style>
+:root{
+  --bg:#F3F5F1; --surface:#FFFFFF; --surface-2:#E8EEE9; --ink:#17221E; --muted:#5B6862; --line:#D3DCD5;
+  --accent:#2E6A54; --accent-ink:#FFFFFF; --accent-soft:#DAEAE1;
+  --ax1:#2E6A54; --ax2:#B2761C; --ax3:#566BB0;
+  --lv1:#CFDDD4; --lv2:#93BCA6; --lv3:#4E8E71; --lv4:#22573F;
+  --ok:#2C7A4B; --warn:#A95A0B; --warn-soft:#F7E8D5; --crit:#B3261E; --crit-soft:#F8DEDC;
+  --shadow:0 1px 2px rgba(23,34,30,.06),0 4px 14px rgba(23,34,30,.05);
+  --display:"Gowun Batang","Nanum Myeongjo",serif;
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101613; --surface:#17201B; --surface-2:#1E2923; --ink:#E4EBE7; --muted:#9BA8A1; --line:#2B3831;
+    --accent:#72C19D; --accent-ink:#0C1410; --accent-soft:#1D372B;
+    --ax1:#72C19D; --ax2:#E3AB53; --ax3:#98A9EA;
+    --lv1:#26352D; --lv2:#3C6852; --lv3:#5DA383; --lv4:#95D8B8;
+    --ok:#6CC495; --warn:#E6A35A; --warn-soft:#3A2A17; --crit:#F08A80; --crit-soft:#3D1D1A;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101613; --surface:#17201B; --surface-2:#1E2923; --ink:#E4EBE7; --muted:#9BA8A1; --line:#2B3831;
+  --accent:#72C19D; --accent-ink:#0C1410; --accent-soft:#1D372B;
+  --ax1:#72C19D; --ax2:#E3AB53; --ax3:#98A9EA;
+  --lv1:#26352D; --lv2:#3C6852; --lv3:#5DA383; --lv4:#95D8B8;
+  --ok:#6CC495; --warn:#E6A35A; --warn-soft:#3A2A17; --crit:#F08A80; --crit-soft:#3D1D1A;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.3;text-wrap:balance;margin:0}
+h1{font-size:1.7rem} h2{font-size:1.3rem} h3{font-size:1.05rem}
+.muted{color:var(--muted)} .small{font-size:.85rem} .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.banner{background:var(--warn-soft);color:var(--warn);font-size:.85rem;padding:8px 16px;text-align:center}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1080px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;min-width:0;flex:1}
+.brand b{font-family:var(--display);font-size:1.15rem}
+.tabs{display:flex;gap:4px;overflow-x:auto;max-width:1080px;margin:0 auto;padding:0 16px 8px}
+.tab{border:0;background:transparent;padding:7px 12px;border-radius:999px;cursor:pointer;white-space:nowrap;color:var(--muted);font-weight:500}
+.tab[aria-current="true"]{background:var(--ink);color:var(--bg)}
+.tab .dot{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--crit);color:#fff;font-size:.7rem;margin-left:4px;text-align:center}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:10px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--crit);border-color:var(--crit)}
+.btn.sm{padding:4px 10px;font-size:.85rem}
+.btn[disabled]{opacity:.5;cursor:progress}
+.grid{display:grid;gap:16px}
+.grid>*,.section>*{min-width:0}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.section{display:grid;gap:14px;margin-top:22px}
+.stat .v{font-family:var(--mono);font-size:1.6rem;font-variant-numeric:tabular-nums}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+label.f{display:grid;gap:4px;font-size:.85rem;color:var(--muted);font-weight:500}
+input[type=text],input[type=password],input[type=date],input[type=number],input[type=url],select,textarea{
+  width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;color:var(--ink)}
+textarea{min-height:84px;resize:vertical}
+.req::after{content:" *";color:var(--crit)}
+label.f.req{position:relative}
+label.f.req::after{content:"필수";position:absolute;top:1px;right:2px;font-size:.72rem;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:600;background:var(--surface-2);color:var(--muted)}
+.pill.ok{background:var(--accent-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}
+.lv{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;font-family:var(--mono);font-size:.85rem;font-weight:500}
+.lvchip{display:inline-flex;align-items:center;padding:2px 9px;border-radius:7px;font-size:.82rem;font-weight:600;white-space:nowrap}
+.lv1{background:var(--lv1);color:var(--ink)} .lv2{background:var(--lv2);color:var(--ink)}
+.lv3{background:var(--lv3);color:#fff} .lv4{background:var(--lv4);color:#fff}
+:root[data-theme="dark"] .lv3,:root[data-theme="dark"] .lv4{color:#0C1410}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .lv3,:root:not([data-theme="light"]) .lv4{color:#0C1410}}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.ladder span{height:10px;border-radius:3px;background:var(--surface-2)}
+.ladder span.on{background:var(--accent)}
+.axis-row{display:grid;grid-template-columns:minmax(90px,130px) 1fr auto;gap:10px;align-items:center}
+.scale{display:flex;gap:6px;flex-wrap:wrap}
+.scale input{position:absolute;opacity:0;pointer-events:none}
+.scale label{cursor:pointer;border:1px solid var(--line);border-radius:9px;padding:5px 10px;font-size:.85rem;background:var(--surface)}
+.scale input:checked+label{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.scale input:focus-visible+label{outline:2px solid var(--accent)}
+.lvgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.lvcell{display:grid;gap:4px;align-content:start;padding:10px;border-radius:10px;background:var(--surface-2)}
+@media (max-width:760px){.lvgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:460px){.lvgrid{grid-template-columns:1fr}}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.photos img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:9px;border:1px solid var(--line);cursor:zoom-in;background:var(--surface-2)}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:var(--surface-2)}
+.drop.bad{border-color:var(--crit)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.thumbs div{position:relative}
+.thumbs img{width:92px;height:70px;object-fit:cover;border-radius:8px}
+.thumbs button{position:absolute;top:2px;right:2px;border:0;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;cursor:pointer;font-size:.7rem}
+.timeline{display:grid;gap:14px}
+.entry{display:grid;gap:10px}
+.entry header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;font-size:.9rem}
+.kv dt{color:var(--muted)} .kv dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.thread{border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px}
+.msg{padding:8px 11px;border-radius:10px;background:var(--surface-2);font-size:.9rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.admin{background:var(--accent-soft)}
+.msg .who{font-size:.75rem;font-weight:600;color:var(--muted);display:block}
+.msg.admin .who{color:var(--ok)}
+.reply{display:flex;gap:8px;flex-wrap:wrap}
+.reply textarea{min-height:44px;flex:1 1 220px}
+table.t{border-collapse:collapse;width:100%;font-size:.88rem}
+.t th,.t td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.t th{font-size:.75rem;color:var(--muted);font-weight:600;white-space:nowrap}
+.t td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.scroll{overflow-x:auto}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.login{max-width:880px;margin:0 auto;padding-block:48px}
+.hero{display:grid;gap:10px;margin-bottom:26px}
+.hero h1{font-size:2.1rem}
+.gas{display:flex;gap:4px}
+.gas b{font-family:var(--mono);font-size:.8rem;padding:1px 7px;border-radius:6px;background:var(--surface-2)}
+.gas b.on{background:var(--ax2);color:#fff}
+dialog{border:0;border-radius:14px;padding:0;max-width:min(92vw,900px);background:var(--surface);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog img{display:block;max-height:80vh}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.9rem;z-index:20}
+.rub td{min-width:150px}
+.nar td{min-width:150px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+@media (max-width:560px){ .axis-row{grid-template-columns:1fr} h1{font-size:1.45rem} .hero h1{font-size:1.7rem} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="banner" class="banner" hidden></div>
+<div id="app"></div>
+<dialog id="viewer"><img id="viewerImg" alt="활동 사진 크게 보기"></dialog>
+<div id="toast" class="toast" hidden role="status"></div>
+<!--BODY-SCRIPTS-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="config.js"></script>
+<script>
+/* ───────── 설정: Supabase 프로젝트 값을 넣으면 공유(클라우드) 모드로 동작합니다 ───────── */
+/* 연결값은 같은 폴더의 config.js 에서 읽습니다: window.MM_CONFIG = { url: "...", key: "..." } */
+const CONFIG = {
+  SUPABASE_URL: (window.MM_CONFIG && window.MM_CONFIG.url) || "",
+  SUPABASE_ANON_KEY: (window.MM_CONFIG && window.MM_CONFIG.key) || "",
+  SEMESTER_END: "2026-12-31"
+};
+/* ─────────────────────────────────────────────────────────────────────────────── */
+
+const RUBRIC = [
+  { key:"a1", name:"개념 알기", q:"개념을 얼마나 알고 있나요?", hint:"장애 특성·특수교육 교육과정·관련 법령 (교수 설계 용어: 지식 이해)",
+    levels:["배운 핵심 용어를 찾아 정리할 수 있어요.","개념을 내 말로 설명하고 예를 들 수 있어요.","비슷한 개념을 비교하고 근거(연구·법령)를 댈 수 있어요.","다른 사람에게 가르치고, 질문에 근거를 들어 답할 수 있어요."] },
+  { key:"a2", name:"수업에 써 보기", q:"배운 것을 수업에 쓸 수 있나요?", hint:"IEP·교수적 수정·UDL·행동지원 (교수 설계 용어: 교수 적용)",
+    levels:["사례를 읽고 학생에게 무엇이 필요한지 찾을 수 있어요.","그 필요에 맞는 지도 방법이나 수정 방법을 한 가지 제안할 수 있어요.","효과가 검증된 방법(증거기반 실제)을 골라 지도안·IEP 목표로 구체적으로 쓸 수 있어요.","조건이 바뀐 새 사례에도 스스로 적용하고, 잘됐는지 확인할 방법까지 세울 수 있어요."] },
+  { key:"a3", name:"돌아보고 연결하기", q:"스스로 돌아보고, 다음 공부와 현장으로 이어 가나요?", hint:"오늘 공부 되짚기·다음 계획·현장과 연결 (교수 설계 용어: 성찰·전이)",
+    levels:["오늘 무엇을 배웠는지 기록할 수 있어요.","어디가 어려웠고 왜 어려웠는지 말할 수 있어요.","다음에 무엇을 공부할지 스스로 정하고, 필요하면 계획을 고칠 수 있어요.","배운 것을 실제 학교 현장이나 임용시험 상황과 연결해 설명할 수 있어요."] }
+];
+const EXAMPLES = {
+  general: { label:"공통(주제 미정)",
+    a1:["핵심 용어 5개를 표로 정리했다","개념 하나를 예시와 함께 친구에게 설명했다","비슷한 두 개념을 연구나 법령 근거로 비교했다","역할을 바꿔 멘토에게 설명하고 질문에 답했다"],
+    a2:["사례를 읽고 학생의 어려움을 한 가지 찾았다","그 어려움에 맞는 수정 방법을 한 가지 제안했다","증거기반 실제를 골라 지도안과 IEP 목표로 썼다","조건을 바꾼 사례에 적용하고 평가 방법을 정했다"],
+    a3:["배운 내용을 세 줄로 적었다","어려웠던 점과 그 이유를 적었다","다음 회기에 할 공부를 정하고 계획을 고쳤다","현장·임용 상황과 연결해 내 생각을 설명했다"] },
+  science: { label:"초등과학",
+    a1:["탐구 과정 기능(관찰·분류·측정·예상·추리·의사소통) 이름을 정리했다","관찰과 추리의 차이를 예시와 함께 설명했다","구체물 조작 중심 수업과 직접교수의 효과를 연구 근거로 비교했다","역할을 바꿔 '물의 상태 변화'를 멘토에게 가르치고 질문에 답했다"],
+    a2:["사례 학생(지적장애, 초4)이 실험 순서를 기억하기 어렵다는 점을 찾았다","실험 순서를 그림 순서표로 제시하자고 제안했다","과제분석과 시각적 촉진을 넣은 '자석의 성질' 지도안을 IEP 목표와 연결해 썼다","시각장애 학생 사례로 바꿔 촉각 자료로 수정하고 평가 체크리스트를 만들었다"],
+    a3:["오늘 배운 탐구 과정 기능을 세 줄로 적었다","실험 안전 지도가 어려웠고, 실제 수업 장면을 못 봐서라고 적었다","다음 주에 통합학급 과학 수업 영상 1편을 분석하기로 정했다","임용 지도안 문항에 이 수정 전략을 넣어 답안을 구성했다"] },
+  comm: { label:"의사소통",
+    a1:["AAC 유형 이름을 표로 정리했다","비도구 AAC를 예시와 함께 친구에게 설명했다","PECS와 음성출력기기(SGD)의 차이를 연구 근거로 비교했다","역할을 바꿔 멘토에게 AAC 선택 기준을 가르치고 질문에 답했다"],
+    a2:["사례 학생(자폐성장애, 초3)이 요구를 말로 표현하기 어렵다는 점을 찾았다","그림카드로 요구하기를 제안했다","PECS 2단계 지도안을 IEP 단기목표와 연결해 썼다","중학생 사례로 바꿔 적용하고 시도별 기록지를 만들었다"],
+    a3:["배운 AAC 용어를 세 줄로 적었다","촉진을 줄이는 시점이 헷갈렸고, 영상 사례를 못 봐서라고 적었다","다음 주에 PECS 영상 사례 2개를 더 분석하기로 정했다","임용 논술 문항에 이 전략을 넣어 답안을 구성했다"] },
+  ebd: { label:"정서행동장애",
+    a1:["긍정적 행동지원(PBS) 3단계 예방 모델의 용어를 정리했다","행동의 기능(관심·회피·획득·감각)을 예시와 함께 설명했다","기능평가 기반 중재와 벌 중심 중재의 효과를 연구 근거로 비교했다","역할을 바꿔 ABC 기록법을 멘토에게 가르치고 질문에 답했다"],
+    a2:["과제를 받으면 교실을 나가는 사례 학생의 행동에서 '회피' 기능을 찾았다","과제를 작게 나누고 휴식 요청 카드를 주자고 제안했다","기능평가 결과로 행동지원계획(선행사건·대체행동·후속결과)을 써서 IEP 행동 목표와 연결했다","쉬는 시간 또래 갈등 사례로 바꿔 계획을 세우고, 행동 기록 그래프로 효과를 확인할 방법을 정했다"],
+    a3:["오늘 배운 행동 기능 4가지를 세 줄로 적었다","가설 문장 쓰기가 어려웠고, ABC 기록 예시를 충분히 못 봐서라고 적었다","다음 주에 ABC 기록 예시 3개를 분석하기로 정했다","교육실습 때 본 학생 행동과 연결해 나의 행동지원 관점을 설명했다"] }
+};
+const EXAMPLE_PATHS = {"science": [{"axis": "a1", "unit": "물의 상태 변화", "steps": ["얼음·물·수증기 용어를 그림과 함께 정리했다", "상태 변화를 온도와 연결해 내 말로 설명했다", "구체물 조작 수업과 설명식 수업의 효과를 연구 근거로 비교했다", "역할을 바꿔 증발과 끓음의 차이를 가르치고 질문에 답했다"]}, {"axis": "a2", "unit": "자석의 성질 (지적장애, 초4)", "steps": ["실험 순서를 기억하기 어렵다는 요구를 찾았다", "실험 순서를 그림 순서표로 제시하자고 제안했다", "과제분석과 시각적 촉진을 넣은 지도안을 IEP 목표와 연결해 썼다", "시각장애 학생 사례로 바꿔 촉각 자료로 수정하고 평가 체크리스트를 만들었다"]}, {"axis": "a2", "unit": "식물의 한살이 (자폐성장애, 초3)", "steps": ["관찰 기록을 글로 쓰기 어렵다는 점을 찾았다", "사진·그림카드로 관찰 일지를 쓰자고 제안했다", "시각적 지원의 근거를 들어 관찰 일지와 단기목표를 작성했다", "통합학급 모둠 활동용 역할 카드로 바꾸고 참여 관찰표를 설계했다"]}, {"axis": "a1", "unit": "탐구 과정 기능", "steps": ["관찰·분류·측정·예상·추리·의사소통 용어를 정리했다", "관찰과 추리의 차이를 예를 들어 설명했다", "성취기준과 연결해 기능별 수업 장면을 비교했다", "단원별로 어떤 기능을 기르는지 멘토에게 가르쳤다"]}, {"axis": "a3", "unit": "실험 안전 지도", "steps": ["오늘 배운 안전 수칙을 기록했다", "알코올램프 지도가 어려웠고, 실제 장면을 못 봐서라고 적었다", "모의수업 영상 1편을 분석하기로 계획했다", "임용 수업실연 문항에 안전 지도 절차를 넣어 구성했다"]}], "comm": [{"axis": "a1", "unit": "보완대체의사소통(AAC) 유형", "steps": ["비도구·도구 AAC 용어를 표로 정리했다", "로우테크·하이테크 예시로 차이를 설명했다", "PECS와 음성출력기기(SGD)의 효과를 연구 근거로 비교했다", "AAC 선택 기준을 멘토에게 가르치고 질문에 답했다"]}, {"axis": "a2", "unit": "PECS (자폐성장애, 초3)", "steps": ["요구를 말로 표현하기 어렵다는 점을 찾았다", "그림카드로 요구하기를 제안했다", "PECS 2단계 지도안을 IEP 단기목표와 연결해 썼다", "중학생 사례로 바꿔 적용하고 시도별 기록지를 만들었다"]}, {"axis": "a2", "unit": "환경중심 언어중재(EMT)", "steps": ["놀이 중 요구할 기회가 적다는 점을 찾았다", "선호물을 손 닿지 않는 곳에 두는 환경 조성을 제안했다", "시범·요구모델·시간지연·우발교수 절차로 지도 계획을 세웠다", "가정 상황으로 바꿔 부모 안내문과 기록 방법을 만들었다"]}, {"axis": "a1", "unit": "언어의 구성 요소", "steps": ["형태·내용·사용(화용) 용어를 정리했다", "화용 어려움을 실제 대화 예로 설명했다", "의사소통장애 유형별 특성을 선별 기준과 비교했다", "사례 발화를 분석해 멘토에게 설명하고 질문에 답했다"]}, {"axis": "a3", "unit": "촉진과 촉진 용암", "steps": ["촉진 위계를 기록했다", "촉진을 줄이는 시점이 헷갈렸고, 영상 사례가 부족해서라고 적었다", "영상 사례 2개를 더 분석하기로 계획했다", "임용 논술 문항에 촉진 용암 절차를 넣어 답안을 구성했다"]}], "ebd": [{"axis": "a1", "unit": "긍정적 행동지원(PBS) 3단계", "steps": ["보편·표적·개별 지원 용어를 정리했다", "세 단계의 차이를 학교 예로 설명했다", "학교 차원 PBS의 효과를 연구 근거로 비교했다", "멘토에게 3단계 모델을 가르치고 질문에 답했다"]}, {"axis": "a2", "unit": "회피 기능 문제행동", "steps": ["과제를 받으면 교실을 나가는 행동에서 회피 기능을 찾았다", "과제를 작게 나누고 휴식 요청 카드를 주자고 제안했다", "기능평가 결과로 행동지원계획을 써서 IEP 행동 목표와 연결했다", "또래 갈등 사례로 바꿔 계획을 세우고 행동 그래프로 효과를 확인했다"]}, {"axis": "a2", "unit": "자기관리(자기점검) 중재", "steps": ["수업 중 과제 이탈이 잦다는 점을 찾았다", "자기점검표 사용을 제안했다", "자기관리 중재의 근거를 들어 점검표·강화 계획·IEP 목표를 썼다", "쉬는 시간 규칙 지키기로 바꿔 적용하고 효과 확인 방법을 정했다"]}, {"axis": "a1", "unit": "행동의 기능과 ABC 기록", "steps": ["선행사건·행동·후속결과 용어를 정리했다", "행동의 기능 4가지를 예로 설명했다", "직접관찰과 면담 방식의 기능평가를 비교했다", "ABC 기록법을 멘토에게 가르치고 질문에 답했다"]}, {"axis": "a3", "unit": "기능평가 가설 세우기", "steps": ["오늘 배운 행동 기능 4가지를 기록했다", "가설 문장 쓰기가 어려웠고, ABC 예시가 부족해서라고 적었다", "ABC 기록 예시 3개를 분석하기로 계획했다", "교육실습 때 본 학생 행동과 연결해 나의 행동지원 관점을 설명했다"]}]};
+const GUIDE_PDF = {science:"guide-science.pdf", comm:"guide-comm.pdf", ebd:"guide-ebd.pdf"};
+const exSetOf = t => EXAMPLES[t?.example_set] ? t.example_set : "general";
+const PRACTICE = [
+  { set:"science", axis:"a2", answer:2,
+    text:"멘티가 '식물의 한살이' 단원 사례(지적장애, 초4)를 읽고, 관찰 기록을 글 대신 그림 카드와 사진으로 하자고 제안했다. 그런데 왜 그 방법이 효과적인지, 어떻게 평가할지는 아직 말하지 못했다.",
+    why:["필요를 찾는 데서 더 나아가 수정 방법을 실제로 제안했으므로 1단계보다 높습니다.","학생의 필요에 맞는 수정 방법을 한 가지 제안했으므로 2단계입니다.","3단계가 되려면 효과가 검증된 방법이라는 근거와 지도안·IEP 목표로 구체화하는 과정이 있어야 합니다.","4단계는 새 사례에 스스로 적용하고 평가 방법까지 세워야 합니다."] },
+  { set:"comm", axis:"a1", answer:3,
+    text:"멘티가 PECS와 음성출력기기(SGD)의 차이를 표로 비교하고, 각각을 뒷받침하는 연구를 한 편씩 들어 설명했다. 그런데 멘토가 새 질문을 하자 근거를 들어 답하지 못했다.",
+    why:["용어 정리를 넘어 비교와 근거 제시까지 했으므로 1단계보다 높습니다.","자기 말로 설명하는 수준을 넘어 두 개념을 근거와 함께 비교했으므로 2단계보다 높습니다.","두 개념을 비교하고 연구 근거를 댔으므로 3단계입니다.","4단계가 되려면 다른 사람의 질문에 근거를 들어 답할 수 있어야 합니다."] },
+  { set:"ebd", axis:"a3", answer:2,
+    text:"멘티가 긍정적 행동지원(PBS)의 기능평가를 공부한 뒤 '가설 문장 쓰기가 어려웠다. ABC 기록 예시를 충분히 보지 못해서인 것 같다'고 적었다. 다음 회기 계획은 쓰지 않았다.",
+    why:["배운 것만 적은 것이 아니라 어려움과 그 원인까지 적었으므로 1단계보다 높습니다.","어려웠던 점과 그 원인을 설명했으므로 2단계입니다.","3단계가 되려면 다음에 무엇을 공부할지 스스로 계획을 세워야 합니다.","4단계는 현장이나 임용 상황과 연결해 자신의 관점을 설명해야 합니다."] }
+];
+const LEVEL_NAMES = ["알아보기","설명하기","근거로 적용하기","새 상황에 쓰기"];
+const LEVEL_TERMS = ["도입","적용","심화","전이"];
+const LEVEL_DEFS = [
+  "도움을 받아 핵심 정보를 찾고 정리하는 수준 (기억하기)",
+  "배운 내용을 자기 말로 설명하고 예를 들 수 있는 수준 (이해하기)",
+  "근거를 들어 비교·선택하고 주어진 과제에 적용하는 수준 (적용·분석하기)",
+  "새로운 상황에 스스로 옮겨 쓰고, 다른 사람에게 가르칠 수 있는 수준 (평가·창안하기, 전이)"
+];
+const PHOTO_KINDS = {
+  face:{label:"활동 인증 사진", need:"멘토와 멘티 두 사람의 얼굴이 함께 보이게", max:2},
+  output:{label:"학습 결과물 사진", need:"정리 노트·지도안·교구 등 오늘 만든 결과물", max:3}
+};
+const pUrl = p => typeof p==="string" ? p : p.url;
+const pKind = p => typeof p==="string" ? "output" : p.kind;
+const lvName = v => `${v}단계 ${LEVEL_NAMES[v-1]}`;
+const GAS = [[-2,"기초선보다 낮음"],[-1,"기초선"],[0,"기대 수준 달성"],[1,"기대 이상"],[2,"기대보다 훨씬 높음"]];
+const STOP = new Set("그리고 그래서 하지만 대한 대해 위한 통해 있는 있다 했다 하였다 하는 에서 으로 이번 오늘 다음 우리 정리 학습 공부 활동 내용 부분 관련 함께 진행 대해서 것을 것이 수를 수업".split(" "));
+
+const cloud = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase);
+const sb = cloud ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) : null;
+
+const ERR = {
+  BAD_PIN:"PIN이 맞지 않습니다. 다시 입력해 주세요.", LOCKED:"PIN을 5번 틀려 10분간 잠겼습니다. 잠시 뒤 다시 시도해 주세요.",
+  NO_TEAM:"팀 코드를 찾을 수 없습니다. 교수자에게 받은 코드를 확인해 주세요.", NOT_INITIALIZED:"교수자 PIN이 아직 설정되지 않았습니다.",
+  PHOTO_REQUIRED:"활동 인증 사진(얼굴)과 학습 결과물 사진을 각각 1장 이상 올려야 저장됩니다.", PIN_TOO_SHORT:"PIN이 너무 짧습니다. (교수자 6자리 이상, 팀 4자리 이상)",
+  ALREADY_INITIALIZED:"교수자 PIN이 이미 설정되어 있습니다.", CONFIRM_MISMATCH:"확인 문구가 일치하지 않습니다.",
+  NAME_REQUIRED:"팀 이름을 입력해 주세요.", NO_SESSION:"해당 활동기록을 찾을 수 없습니다."
+};
+
+/* ───────── 저장소 계층 ───────── */
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true;}catch(e){return false;} },
+  sget(k){ try{ return JSON.parse(sessionStorage.getItem(k)); }catch(e){ return null; } },
+  sset(k,v){ try{ sessionStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+
+const Demo = {
+  db:null,
+  load(){ if(this.db) return this.db; this.db = store.get("mm-demo-v4", null) || seedDemo(); this.save(); return this.db; },
+  save(){ store.set("mm-demo-v4", this.db); },
+  admin(pin){ const d=this.load(); if(!d.admin_pin) return "NOT_INITIALIZED"; return d.admin_pin===pin?"OK":"BAD_PIN"; },
+  team(code,pin){ const d=this.load(); const t=d.teams.find(x=>x.code===String(code||"").trim().toUpperCase()); if(!t) return {e:"NO_TEAM"}; if(t.pin!==pin) return {e:"BAD_PIN"}; return {t}; },
+  bundle(id){ const d=this.load(); const t={...d.teams.find(x=>x.id===id)}; delete t.pin;
+    return { team:t, sessions:d.sessions.filter(s=>s.team_id===id), comments:d.comments.filter(c=>c.team_id===id), notices:d.notices.filter(n=>!n.team_id||n.team_id===id) }; },
+  mm_admin_status(){ return {data:!!this.load().admin_pin}; },
+  mm_admin_init({p_pin}){ const d=this.load(); if(d.admin_pin) return {error:"ALREADY_INITIALIZED"}; if((p_pin||"").length<6) return {error:"PIN_TOO_SHORT"}; d.admin_pin=p_pin; this.save(); return {data:true}; },
+  mm_admin_login({p_pin}){ const a=this.admin(p_pin); return a==="OK"?{data:true}:{error:a}; },
+  mm_admin_all({p_pin}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; const d=this.load();
+    return {data:{ teams:d.teams.map(t=>{const c={...t}; delete c.pin; return c;}), sessions:d.sessions, comments:d.comments, notices:d.notices }}; },
+  mm_admin_save_team({p_pin,p}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; const d=this.load();
+    if(!p.name) return {error:"NAME_REQUIRED"};
+    if(!p.id){ if((p.pin||"").length<4) return {error:"PIN_TOO_SHORT"};
+      const t={id:uid(),code:"T"+Math.random().toString(16).slice(2,7).toUpperCase(),pin:p.pin,name:p.name,topic:p.topic||"",example_set:p.example_set||"general",mentor:p.mentor||"",mentee:p.mentee||"",goals:p.goals||[],created_at:new Date().toISOString()};
+      d.teams.push(t); this.save(); const c={...t}; delete c.pin; return {data:c}; }
+    const t=d.teams.find(x=>x.id===p.id); Object.assign(t,{name:p.name,topic:p.topic,example_set:p.example_set,mentor:p.mentor,mentee:p.mentee,goals:p.goals}); if((p.pin||"").length>=4) t.pin=p.pin; this.save(); return {data:t}; },
+  mm_admin_delete_team({p_pin,p_id}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; const d=this.load();
+    d.teams=d.teams.filter(t=>t.id!==p_id); d.sessions=d.sessions.filter(s=>s.team_id!==p_id); d.comments=d.comments.filter(c=>c.team_id!==p_id); d.notices=d.notices.filter(n=>n.team_id!==p_id); this.save(); return {data:true}; },
+  mm_admin_delete_session({p_pin,p_id}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; const d=this.load();
+    d.sessions=d.sessions.filter(s=>s.id!==p_id); d.comments=d.comments.filter(c=>c.session_id!==p_id); this.save(); return {data:true}; },
+  mm_admin_comment({p_pin,p_session,p_body}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; const d=this.load(); const s=d.sessions.find(x=>x.id===p_session); if(!s) return {error:"NO_SESSION"};
+    d.comments.push({id:uid(),session_id:s.id,team_id:s.team_id,role:"admin",author:"교수자",body:p_body,created_at:new Date().toISOString()}); this.save(); return {data:s.team_id}; },
+  mm_admin_notice({p_pin,p_team,p_body}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; const d=this.load();
+    d.notices.unshift({id:uid(),team_id:p_team||null,body:p_body,created_at:new Date().toISOString()}); this.save(); return {data:true}; },
+  mm_admin_delete_notice({p_pin,p_id}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; const d=this.load(); d.notices=d.notices.filter(n=>n.id!==p_id); this.save(); return {data:true}; },
+  mm_admin_purge({p_pin,p_confirm}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a}; if(p_confirm!=="학기종료") return {error:"CONFIRM_MISMATCH"};
+    const d=this.load(); d.teams=[]; d.sessions=[]; d.comments=[]; d.notices=[]; this.save(); return {data:true}; },
+  mm_team_login({p_code,p_pin}){ const r=this.team(p_code,p_pin); if(r.e) return {error:r.e}; return {data:this.bundle(r.t.id)}; },
+  mm_team_add_session({p_code,p_pin,p}){ const r=this.team(p_code,p_pin); if(r.e) return {error:r.e}; if(!(p.photos||[]).some(x=>pKind(x)==="face") || !(p.photos||[]).some(x=>pKind(x)==="output")) return {error:"PHOTO_REQUIRED"};
+    const s={...p,id:uid(),team_id:r.t.id,created_at:new Date().toISOString()}; const d=this.load(); d.sessions.push(s);
+    if(!this.save()){ /* 브라우저 저장 한도 초과 시 메모리에만 유지 */ }
+    return {data:{id:s.id,team_id:r.t.id}}; },
+  mm_team_comment({p_code,p_pin,p_session,p_role,p_author,p_body}){ const r=this.team(p_code,p_pin); if(r.e) return {error:r.e}; const d=this.load();
+    d.comments.push({id:uid(),session_id:p_session,team_id:r.t.id,role:p_role,author:p_author,body:p_body,created_at:new Date().toISOString()}); this.save(); return {data:r.t.id}; }
+};
+
+async function rpc(fn, args={}){
+  let res;
+  if(cloud){
+    const {data,error} = await sb.rpc(fn,args);
+    if(error) throw new Error("서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요. ("+error.message+")");
+    res = data;
+  } else res = Demo[fn](args);
+  if(res && res.error) throw new Error(ERR[res.error] || res.error);
+  return res ? res.data : null;
+}
+
+async function uploadPhoto(teamId, blob, kind="output"){
+  if(!cloud) return await blobToDataURL(blob);
+  const path = `${teamId}/${kind}/${new Date().toISOString().slice(0,10)}-${uid()}.jpg`;
+  const {error} = await sb.storage.from("mm-photos").upload(path, blob, {contentType:"image/jpeg", upsert:false});
+  if(error) throw new Error("사진을 올리지 못했습니다: "+error.message);
+  return sb.storage.from("mm-photos").getPublicUrl(path).data.publicUrl;
+}
+
+/* ───────── 실시간 알림 (브로드캐스트) ───────── */
+let channel=null;
+function connectLive(){
+  if(!cloud || channel) return;
+  channel = sb.channel("mm-live",{config:{broadcast:{self:false}}});
+  channel.on("broadcast",{event:"changed"},({payload})=>{
+    if(S.role==="admin" || (S.role==="team" && payload && payload.team_id===S.data?.team?.id)){ refresh(true); }
+  }).subscribe();
+}
+function ping(team_id){ if(channel) channel.send({type:"broadcast",event:"changed",payload:{team_id}}); }
+
+/* ───────── 도우미 ───────── */
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const daysSince = d => d ? Math.floor((Date.parse(today())-Date.parse(d))/86400000) : null;
+const fmtDate = d => { if(!d) return "-"; const [y,m,dd]=d.slice(0,10).split("-"); return `${+m}월 ${+dd}일`; };
+const fmtTime = t => { const d=new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; };
+const mean = a => { const v=a.filter(x=>typeof x==="number"&&!isNaN(x)); return v.length? v.reduce((p,c)=>p+c,0)/v.length : null; };
+const f1 = v => v==null? "-" : v.toFixed(1);
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
+function blobToDataURL(b){ return new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b); }); }
+async function compress(file, max=cloud?1280:720, q=cloud?.74:.6){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+    const s = Math.min(1, max/Math.max(img.width,img.height));
+    const c = document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(r,"image/jpeg",q));
+  } finally { URL.revokeObjectURL(url); }
+}
+function download(name, text, type="text/csv;charset=utf-8"){
+  const blob = text instanceof Blob ? text : new Blob([type.startsWith("text/csv")?"﻿"+text:text],{type});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);
+}
+const csvCell = v => { const s = v==null?"":String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; };
+const toCSV = rows => rows.map(r=>r.map(csvCell).join(",")).join("\n");
+
+/* 성장 계산 */
+function sessionLevel(s){ const r = Object.keys(s.mentor_rating||{}).length ? s.mentor_rating : s.self_rating; return mean(RUBRIC.map(a=>r?.[a.key])); }
+function latestAxis(sessions, key){ for(let i=sessions.length-1;i>=0;i--){ const v=sessions[i].mentor_rating?.[key] ?? sessions[i].self_rating?.[key]; if(v) return v; } return null; }
+function levelUps(sessions){
+  const best={}, ups={};
+  sessions.forEach(s=>{ RUBRIC.forEach(a=>{ const v=s.mentor_rating?.[a.key]; if(!v) return; if(best[a.key]!=null && v>best[a.key]) (ups[s.id]=ups[s.id]||[]).push(a.name+" "+lvName(v)); if(best[a.key]==null||v>best[a.key]) best[a.key]=v; }); });
+  return ups;
+}
+function gap(s){ const d=RUBRIC.map(a=>(s.self_rating?.[a.key]&&s.mentor_rating?.[a.key])? s.self_rating[a.key]-s.mentor_rating[a.key] : null); return mean(d); }
+function lvChip(v){ if(!v) return `<span class="lvchip" style="background:var(--surface-2)">평정 없음</span>`; return `<span class="lvchip lv${v}" title="${esc(LEVEL_DEFS[v-1])}">${lvName(v)}</span>`; }
+function lvBadge(v){ if(!v) return `<span class="lv" style="background:var(--surface-2)">-</span>`; const r=Math.max(1,Math.min(4,Math.round(v))); return `<span class="lv lv${r}" title="${lvName(r)}">${Number.isInteger(v)?v:v.toFixed(1)}</span>`; }
+
+/* 선 그래프 (SVG) */
+function lineChart(series, {h=220, yMin=1, yMax=4, labels=[], yTicks=[1,2,3,4], yFmt=v=>v, left=58}={}){
+  const n = Math.max(2, ...series.map(s=>s.values.length));
+  const W=600, H=h, L=left, R=16, T=14, B=34;
+  const x = i => L + (W-L-R) * (n===1?0.5: i/(n-1));
+  const y = v => T + (H-T-B) * (1-(v-yMin)/(yMax-yMin));
+  let g = "";
+  yTicks.forEach(t=>{ g += `<line x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${y(t)+4}" text-anchor="end" font-size="13" fill="var(--muted)">${yFmt(t)}</text>`; });
+  const step = Math.ceil(n/10);
+  for(let i=0;i<n;i++){ if(i%step && i!==n-1) continue; g += `<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="13" fill="var(--muted)">${esc(labels[i]??(i+1)+"회")}</text>`; }
+  series.forEach(s=>{
+    const pts = s.values.map((v,i)=>v==null?null:[x(i),y(v)]);
+    let d="", pen=false; pts.forEach(p=>{ if(!p){pen=false;return;} d+=(pen?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)+" "; pen=true; });
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" ${s.dash?'stroke-dasharray="5 4"':''}/>`;
+    pts.forEach((p,i)=>{ if(p) g += `<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?4.5:3}" fill="${i===pts.length-1?s.color:"var(--surface)"}" stroke="${s.color}" stroke-width="2"><title>${esc(s.name)} ${labels[i]||""}: ${s.values[i]}</title></circle>`; });
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(series.map(s=>s.name).join(", "))} 변화 그래프">${g}</svg>`;
+}
+function legend(series){ return `<div class="legend">${series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>`; }
+
+/* ───────── 상태와 화면 ───────── */
+const S = { role:null, pin:null, code:null, data:null, tab:"home", filterTeam:"all", draft:{face:[],output:[]}, busy:false };
+
+function saveAuth(){ store.sset("mm-auth", S.role? {role:S.role,pin:S.pin,code:S.code}:null); }
+function lastSeenKey(){ return "mm-seen-"+(S.role==="admin"?"admin":S.code); }
+function unreadCount(){
+  if(!S.data) return 0; if(S.preview) return 0; const seen = store.get(lastSeenKey(), "");
+  const list = S.role==="admin" ? S.data.comments.filter(c=>c.role!=="admin") : S.data.comments.filter(c=>c.role==="admin");
+  return list.filter(c=>c.created_at>seen).length;
+}
+function markSeen(){ store.set(lastSeenKey(), new Date().toISOString()); }
+
+async function refresh(silent){
+  try{
+    if(S.role==="team"){ S.data = await rpc("mm_team_login",{p_code:S.code,p_pin:S.pin}); if(!S.practice) S.practice = store.get(practiceKey(), {}); }
+    else if(S.role==="admin") S.data = await rpc("mm_admin_all",{p_pin:S.pin});
+    render();
+  }catch(e){ if(!silent) toast(e.message); if(/PIN|잠겼/.test(e.message)) logout(); }
+}
+function logout(){ S.role=S.pin=S.code=S.data=S.practice=S.exSet=S.viewAs=null; S.tab="home"; saveAuth(); render(); }
+
+function render(){
+  const app=$("#app");
+  const banner=$("#banner");
+  banner.hidden = cloud;
+  banner.textContent = "시연 모드입니다. 기록은 이 브라우저에만 저장됩니다. 시연용 교수자 PIN 000000, 팀 코드 TDEMOA · PIN 1111";
+  if(!S.role){ app.innerHTML = viewLogin(); return; }
+  app.innerHTML = S.role==="admin" ? viewAdmin() : viewTeam();
+  if(S.tab==="feedback"||S.tab==="records") { /* 소통 탭을 열면 읽음 처리 */ }
+}
+
+function header(title, sub, tabs){
+  const unread = unreadCount();
+  return `<div class="top"><div class="top-in">
+    <div class="brand"><span class="eyebrow">동행 기록 · ${S.role==="admin"&&!S.preview?"교수자":"멘토링 팀"}</span><b>${esc(title)}</b>${sub?`<span class="small muted">${sub}</span>`:""}</div>
+    ${S.preview?"":`<button class="btn sm" data-act="refresh">새로고침</button><button class="btn sm" data-act="logout">나가기</button>`}
+  </div>
+  <nav class="tabs" aria-label="화면 이동">${tabs.map(([k,l])=>`<button class="tab" data-tab="${k}" aria-current="${S.tab===k}">${l}${(k==="records"||k==="feed")&&unread?`<span class="dot">${unread}</span>`:""}</button>`).join("")}</nav></div>`;
+}
+
+/* 로그인 */
+function viewLogin(){
+  return `<div class="wrap login">
+    <div class="hero"><span class="eyebrow">특수교육학부 멘토-멘티 1:1 학습 점검</span>
+      <h1>동행 기록</h1>
+      <p class="muted" style="max-width:60ch;margin:0">회기마다 활동 사진과 학습 내용을 남기고, 공통 루브릭으로 성장 단계를 점검합니다. 교수자 피드백은 각 기록 아래에서 바로 주고받습니다. 기록은 ${fmtDate(CONFIG.SEMESTER_END)}까지 운영 후 학기 종료와 함께 정리됩니다.</p></div>
+    <div class="grid g2">
+      <form class="card grid" data-form="team-login" style="gap:12px">
+        <h2>팀 입장</h2><p class="small muted" style="margin:0">멘토와 멘티가 같은 팀 코드와 PIN을 씁니다.</p>
+        <label class="f">팀 코드<input id="lg-code" type="text" autocomplete="off" placeholder="예: T4F2A1" required style="text-transform:uppercase"></label>
+        <label class="f">팀 PIN<input id="lg-pin" type="password" inputmode="numeric" autocomplete="off" required></label>
+        <button class="btn primary">입장하기</button>
+      </form>
+      <form class="card grid" data-form="admin-login" style="gap:12px">
+        <h2>교수자 입장</h2><p class="small muted" style="margin:0" id="adm-hint">전체 팀 현황, 피드백, 분석, 내보내기</p>
+        <label class="f">교수자 PIN<input id="lg-apin" type="password" autocomplete="off" required></label>
+        <label class="f" id="lg-apin2-wrap" hidden>PIN 다시 입력<input id="lg-apin2" type="password" autocomplete="off"></label>
+        <button class="btn" id="adm-btn">교수자로 입장</button>
+      </form>
+    </div></div>`;
+}
+
+/* ───────── 팀 화면 ───────── */
+function viewTeam(){
+  const {team,sessions} = S.data;
+  const tabs=[["home","요약"],["write","기록하기"],["records","활동기록·소통"],["growth","성장 점검"],["rubric","루브릭"]];
+  let body="";
+  if(S.tab==="home") body=teamHome();
+  if(S.tab==="write") body=teamWrite();
+  if(S.tab==="records"){ body=timeline(sessions, false); if(!S.preview) markSeen(); }
+  if(S.tab==="growth") body=growthView(team, sessions);
+  if(S.tab==="rubric") body=rubricView(team);
+  return header(team.name, `${esc(team.topic)} · 멘토 ${esc(team.mentor)} · 멘티 ${esc(team.mentee)}`, tabs) + `<main class="wrap">${body}</main>`;
+}
+
+function teamHome(){
+  const {team,sessions,notices,comments} = S.data;
+  const mins = sessions.reduce((p,s)=>p+(+s.minutes||0),0);
+  const last = sessions.at(-1);
+  const ds = daysSince(last?.session_date);
+  const cur = mean(RUBRIC.map(a=>latestAxis(sessions,a.key)));
+  const feed = comments.filter(c=>c.role==="admin").slice(-3).reverse();
+  const ups = levelUps(sessions); const upCount = Object.values(ups).flat().length;
+  return `<div class="section">
+    <div class="grid g4">
+      <div class="card stat"><div class="k">활동 회기</div><div class="v">${sessions.length}<span class="small muted">회</span></div></div>
+      <div class="card stat"><div class="k">누적 시간</div><div class="v">${(mins/60).toFixed(1)}<span class="small muted">시간</span></div></div>
+      <div class="card stat"><div class="k">현재 평균 단계</div><div class="v">${f1(cur)}<span class="small muted"> / 4</span></div></div>
+      <div class="card stat"><div class="k">마지막 활동</div><div class="v" style="font-size:1.15rem">${last?fmtDate(last.session_date):"-"}</div>${ds!=null?`<span class="pill ${ds>=14?"warn":"ok"}">${ds===0?"오늘":ds+"일 전"}</span>`:""}</div>
+    </div>
+    <div class="grid g2">
+      <div class="card grid" style="gap:12px"><div class="row between"><h2>지금 우리 팀의 단계</h2><span class="pill ok">단계 상승 ${upCount}회</span></div>
+        ${RUBRIC.map(a=>{ const v=latestAxis(sessions,a.key); return `<div class="grid" style="gap:4px"><div class="row between"><span><b>${a.name}</b> <span class="small muted">${a.q}</span></span><span class="small">${v?lvName(v):"기록 전"}</span></div>
+          <div class="ladder">${[1,2,3,4].map(i=>`<span class="${v&&i<=v?"on":""}"></span>`).join("")}</div>
+          ${v&&v<4?`<span class="small muted">다음 목표(${v+1}단계): ${esc(a.levels[v])}</span>`:v===4?`<span class="small muted">최고 단계입니다. 다른 사례로 전이해 보세요.</span>`:""}</div>`; }).join("")}
+        ${Object.keys(S.practice||{}).length<3?`<div class="msg"><span class="who">처음이라면</span>기록 전에 루브릭 연습 3문항을 멘토와 함께 풀어 보세요. <button class="btn sm" data-tab="rubric">연습하러 가기</button></div>`:""}
+        <button class="btn primary" data-tab="write">오늘 활동 기록하기</button>
+      </div>
+      <div class="grid" style="gap:16px;align-content:start">
+        <div class="card grid" style="gap:8px"><h2>교수자 피드백</h2>
+          ${feed.length? feed.map(c=>{ const s=sessions.find(x=>x.id===c.session_id); return `<div class="msg admin"><span class="who">${fmtTime(c.created_at)} · ${s?fmtDate(s.session_date)+" 기록":""}</span>${esc(c.body)}</div>`; }).join("") : `<p class="muted small" style="margin:0">아직 받은 피드백이 없습니다.</p>`}
+          <button class="btn sm" data-tab="records">전체 대화 보기</button></div>
+        <div class="card grid" style="gap:8px"><h2>공지</h2>
+          ${notices.length? notices.slice(0,4).map(n=>`<div class="msg"><span class="who">${fmtTime(n.created_at)} · ${n.team_id?"우리 팀":"전체"}</span>${esc(n.body)}</div>`).join("") : `<p class="muted small" style="margin:0">공지가 없습니다.</p>`}</div>
+        <div class="card grid" style="gap:8px"><h2>학기 목표</h2>
+          ${(team.goals||[]).length? team.goals.map((g,i)=>{ const v = [...sessions].reverse().find(s=>s.gas&&s.gas[i]!=null)?.gas[i]; return `<div class="row between"><span>${i+1}. ${esc(g)}</span>${gasBar(v)}</div>`; }).join("") : `<p class="muted small" style="margin:0">교수자가 목표를 등록하면 여기에 표시됩니다.</p>`}</div>
+      </div>
+    </div></div>`;
+}
+function gasBar(v){ return `<span class="gas" title="${v==null?"평정 전":GAS.find(g=>g[0]===+v)[1]}">${GAS.map(([k])=>`<b class="${+v===k&&v!=null?"on":""}">${k>0?"+"+k:k}</b>`).join("")}</span>`; }
+
+function levelGrid(a, set){
+  return `<div class="lvgrid">${a.levels.map((l,i)=>`<div class="lvcell"><div>${lvChip(i+1)}</div><div class="small">${esc(l)}</div><div class="small muted">예) ${esc(EXAMPLES[set||"general"][a.key][i])}</div></div>`).join("")}</div>`;
+}
+function scaleInput(name, values, labels, cur){
+  return `<div class="scale" role="radiogroup">${values.map((v,i)=>`<input type="radio" name="${name}" id="${name}-${i}" value="${v}" ${cur==v?"checked":""}><label for="${name}-${i}" title="${esc(labels[i]||"")}">${values.length===4? lvName(v) : (v>0?"+"+v:v)}</label>`).join("")}</div>`;
+}
+function teamWrite(){
+  const {team} = S.data;
+  return `<form class="section" data-form="session">
+    <div class="card grid" style="gap:14px"><h2>1. 활동 개요</h2>
+      <div class="grid g4">
+        <label class="f req">활동 날짜<input id="w-date" type="date" value="${today()}" max="${today()}" required></label>
+        <label class="f req">활동 시간(분)<input id="w-min" type="number" min="10" max="600" step="5" value="60" required></label>
+        <label class="f">방식<select id="w-mode"><option>대면</option><option>비대면(화상)</option><option>혼합</option></select></label>
+        <label class="f">장소<input id="w-place" type="text" placeholder="예: 사범대 스터디룸"></label>
+      </div>
+      <label class="f">작성자<select id="w-author"><option>${esc(team.mentor)} (멘토)</option><option>${esc(team.mentee)} (멘티)</option><option>멘토·멘티 함께</option></select></label>
+      <label class="f req">오늘의 학습 주제<input id="w-topic" type="text" required placeholder="예: 그림교환의사소통(PECS) 3단계 지도 절차"></label>
+    </div>
+    <div class="card grid" style="gap:12px"><h2 class="req">2. 활동 사진 (두 종류 모두 필수)</h2>
+      <div class="grid g2">${Object.entries(PHOTO_KINDS).map(([k,v])=>`<div class="grid" style="gap:6px">
+        <b class="req">${v.label}</b><span class="small muted">${v.need} · ${v.max}장까지</span>
+        <div class="drop" id="drop-${k}" data-kind="${k}" tabindex="0" role="button">사진 선택 또는 촬영<input id="w-photo-${k}" data-kind="${k}" type="file" accept="image/*" ${k==="face"?'capture="user"':''} multiple hidden></div>
+        <div class="thumbs" id="thumbs-${k}">${thumbsHTML(k)}</div></div>`).join("")}</div>
+      <label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" id="w-consent" style="margin-top:4px"><span class="req">사진에 나온 멘토·멘티 모두 촬영과 학기말(${fmtDate(CONFIG.SEMESTER_END)})까지의 보관에 동의했습니다. 사진은 교수자와 우리 팀만 보는 용도이며, 학기 종료 후 삭제됩니다.</span></label>
+    </div>
+    <div class="card grid" style="gap:12px"><h2>3. 학습 내용</h2>
+      <label class="f req">공부한 단원(주제)<input id="w-unit" type="text" list="unit-list" required placeholder="예: 의사소통장애 > 보완대체의사소통(AAC)"><datalist id="unit-list">${[...new Set(S.data.sessions.map(x=>x.unit).filter(Boolean))].map(u=>`<option value="${esc(u)}">`).join("")}</datalist></label>
+      <label class="f req">한 일과 배운 내용<textarea id="w-content" required placeholder="핵심 개념, 풀어 본 사례, 멘토가 설명한 방법 등"></textarea></label>
+      <label class="f">산출물 링크<input id="w-link" type="url" placeholder="지도안·정리노트 링크 (선택)"></label>
+      <div class="grid g2"><label class="f">어려웠던 점<textarea id="w-diff"></textarea></label><label class="f">다음 회기 계획<textarea id="w-next"></textarea></label></div>
+    </div>
+    <div class="card grid" style="gap:14px"><h2>4. 성장 점검 (공통 루브릭)</h2>
+      <p class="small muted" style="margin:0">오늘 활동에서 실제로 해낸 것에 가장 가까운 단계를 고르세요. 멘티는 스스로, 멘토는 관찰한 대로 따로 고릅니다. 예시는 우리 팀 주제(${esc(EXAMPLES[exSetOf(team)].label)}) 기준입니다.</p>
+      ${RUBRIC.map(a=>`<div class="grid" style="gap:8px;padding-top:10px;border-top:1px solid var(--line)"><div><b>${a.name}</b> <span class="muted">${a.q}</span></div>
+        ${levelGrid(a, exSetOf(team))}
+        <div class="axis-row"><span class="small">나(멘티)의 판단</span>${scaleInput("self-"+a.key,[1,2,3,4],a.levels)}</div>
+        <div class="axis-row"><span class="small">멘토가 본 수준</span>${scaleInput("mentor-"+a.key,[1,2,3,4],a.levels)}</div>
+        <label class="f">그 단계라고 판단한 근거 (멘티 서술)<textarea id="nar-${a.key}" rows="2" placeholder="오늘 실제로 한 일을 근거로 적어 주세요. 예) ${esc(EXAMPLES[exSetOf(team)][a.key][1])}"></textarea></label></div>`).join("")}
+      <div class="grid g2" style="padding-top:10px;border-top:1px solid var(--line)">
+        <label class="f">멘토 관찰 의견 (멘토 서술)<textarea id="nar-mentor" placeholder="멘티가 잘한 점, 아직 어려워하는 점을 관찰한 대로 적어 주세요."></textarea></label>
+        <label class="f">다음 단계로 올라가려면 무엇이 필요할까요? (멘티 서술)<textarea id="nar-next" placeholder="예) 근거가 되는 연구를 한 편 더 찾아 비교해 보기"></textarea></label>
+      </div>
+      ${(team.goals||[]).length? `<div class="grid" style="gap:8px;padding-top:8px;border-top:1px solid var(--line)"><b>학기 목표 달성 척도(GAS) <span class="small muted">0 = 기대 수준 달성</span></b>
+        ${team.goals.map((g,i)=>`<div class="axis-row"><span class="small">${esc(g)}</span>${scaleInput("gas-"+i,[-2,-1,0,1,2],GAS.map(x=>x[1]))}</div>`).join("")}</div>`:""}
+    </div>
+    <div class="row" style="justify-content:flex-end"><span class="small muted" id="w-status"></span><button class="btn primary" id="w-save" ${S.preview?"disabled":""}>기록 저장</button></div>
+  </form>`;
+}
+
+function timeline(sessions, admin){
+  const all = S.data.comments; const teams = admin? S.data.teams : [S.data.team];
+  const ups = {}; teams.forEach(t=>Object.assign(ups, levelUps(sessions.filter(s=>s.team_id===t.id))));
+  const list = [...sessions].sort((a,b)=> (b.session_date+b.created_at).localeCompare(a.session_date+a.created_at));
+  if(!list.length) return `<div class="card empty section">아직 활동기록이 없습니다.</div>`;
+  const team = S.data.team;
+  return `<div class="section timeline">${list.map(s=>{
+    const t = teams.find(x=>x.id===s.team_id) || {};
+    const cs = all.filter(c=>c.session_id===s.id);
+    const hasFb = cs.some(c=>c.role==="admin");
+    return `<article class="card entry" id="s-${s.id}">
+      <header><div><span class="eyebrow">${admin?esc(t.name)+" · ":""}${fmtDate(s.session_date)} · ${s.minutes}분 · ${esc(s.mode)}</span>${s.unit?`<div class="small muted">단원: ${esc(s.unit)}</div>`:""}<h3>${esc(s.topic)}</h3></div>
+        <div class="row">${(ups[s.id]||[]).map(u=>`<span class="pill ok">▲ ${esc(u)}</span>`).join("")}
+          ${hasFb?`<span class="pill ok">피드백 완료</span>`:`<span class="pill ${admin?"warn":""}">피드백 대기</span>`}
+          ${admin?`<button class="btn sm danger" data-act="del-session" data-id="${s.id}">삭제</button>`:""}</div></header>
+      ${photoGroups(s)}
+      <dl class="kv"><dt>학습 내용</dt><dd>${esc(s.content)}</dd>
+        ${s.difficulty?`<dt>어려웠던 점</dt><dd>${esc(s.difficulty)}</dd>`:""}
+        ${s.next_plan?`<dt>다음 계획</dt><dd>${esc(s.next_plan)}</dd>`:""}
+        ${s.output_link?`<dt>산출물</dt><dd><a href="${esc(s.output_link)}" target="_blank" rel="noopener">${esc(s.output_link)}</a></dd>`:""}
+        ${s.place?`<dt>장소</dt><dd>${esc(s.place)}</dd>`:""}
+        ${s.unit?`<dt>공부한 단원</dt><dd>${esc(s.unit)}</dd>`:""}
+        <dt>성장 점검</dt><dd><div class="grid" style="gap:6px">${RUBRIC.map(a=>`<div><span class="small"><b>${a.name}</b>: 나 ${lvChip(s.self_rating?.[a.key])} · 멘토 ${lvChip(s.mentor_rating?.[a.key])}</span>${s.narrative?.[a.key]?`<div class="small">근거: ${esc(s.narrative[a.key])}</div>`:""}</div>`).join("")}</div></dd>
+        ${s.narrative?.mentor_note?`<dt>멘토 관찰</dt><dd>${esc(s.narrative.mentor_note)}</dd>`:""}
+        ${s.narrative?.next_step?`<dt>다음 단계 준비</dt><dd>${esc(s.narrative.next_step)}</dd>`:""}
+        <dt>작성</dt><dd class="small muted">${esc(s.author)} · ${fmtTime(s.created_at)}</dd></dl>
+      <div class="thread">
+        ${cs.map(c=>`<div class="msg ${c.role==="admin"?"admin":""}"><span class="who">${c.role==="admin"?"교수자":esc(c.author)+(c.role==="mentor"?" (멘토)":" (멘티)")} · ${fmtTime(c.created_at)}</span>${esc(c.body)}</div>`).join("")}
+        <form class="reply" data-form="comment" data-id="${s.id}" ${S.preview?"inert":""}>
+          ${admin?"":`<select id="who-${s.id}" style="width:auto"><option value="mentor">${esc(team.mentor)} (멘토)</option><option value="mentee">${esc(team.mentee)} (멘티)</option></select>`}
+          <textarea id="c-${s.id}" placeholder="${admin?"피드백: 잘한 점(Feed Back) · 다음 목표(Feed Forward)":"질문이나 답글을 남기세요"}" required></textarea>
+          <button class="btn ${admin?"primary":""}">${admin?"피드백 보내기":"답글 달기"}</button>
+        </form>
+      </div></article>`; }).join("")}</div>`;
+}
+
+function photoGroups(s){
+  return `<div class="grid g2" style="gap:10px">${Object.entries(PHOTO_KINDS).map(([k,v])=>{ const ps=(s.photos||[]).filter(p=>pKind(p)===k);
+    return `<div class="grid" style="gap:4px"><span class="eyebrow">${v.label}</span>${ps.length?`<div class="photos">${ps.map((p,i)=>`<img src="${esc(pUrl(p))}" alt="${esc(s.topic)} ${v.label} ${i+1}" loading="lazy" data-act="zoom">`).join("")}</div>`:`<span class="small muted">없음</span>`}</div>`; }).join("")}</div>`;
+}
+function narrativeView(sessions){
+  const has = sessions.filter(s=>s.narrative && Object.values(s.narrative).some(Boolean));
+  if(!has.length) return "";
+  const rows = [...has].reverse();
+  return `<div class="card grid" style="gap:10px"><h2>서술형 기록 모아보기</h2><p class="small muted" style="margin:0">최근 기록부터 보여 줍니다. 근거 문장이 구체적으로 바뀌어 가는지 살펴보세요.</p>
+    <div class="scroll"><table class="t nar"><thead><tr><th>날짜·단원</th>${RUBRIC.map(a=>`<th>${a.name} 근거</th>`).join("")}<th>멘토 관찰</th><th>다음 단계 준비</th></tr></thead><tbody>
+    ${rows.map(s=>`<tr><td style="white-space:nowrap">${fmtDate(s.session_date)}<br><span class="small muted">${esc(s.unit||s.topic)}</span></td>${RUBRIC.map(a=>`<td class="small">${s.mentor_rating?.[a.key]?lvChip(s.mentor_rating[a.key])+"<br>":""}${esc(s.narrative?.[a.key]||"")}</td>`).join("")}<td class="small">${esc(s.narrative?.mentor_note||"")}</td><td class="small">${esc(s.narrative?.next_step||"")}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+}
+function growthView(team, sessions){
+  if(!sessions.length) return `<div class="card empty section">첫 기록을 남기면 성장 그래프가 그려집니다.</div>`;
+  const labels = sessions.map(s=>fmtDate(s.session_date).replace("월 ","/").replace("일",""));
+  const colors=["var(--ax1)","var(--ax2)","var(--ax3)"];
+  const mentor = RUBRIC.map((a,i)=>({name:a.name, color:colors[i], values:sessions.map(s=>s.mentor_rating?.[a.key]??null)}));
+  const self = [{name:"멘토 평정 평균",color:"var(--accent)",values:sessions.map(s=>mean(RUBRIC.map(a=>s.mentor_rating?.[a.key])))},
+                {name:"멘티 자기평가 평균",color:"var(--ax2)",dash:true,values:sessions.map(s=>mean(RUBRIC.map(a=>s.self_rating?.[a.key])))}];
+  const first=sessions[0], last=sessions.at(-1);
+  const gasSeries = (team.goals||[]).map((g,i)=>({name:`목표 ${i+1}`,color:colors[i%3],values:sessions.map(s=>s.gas?.[i]??null)}));
+  const cmp = s => `<div class="card grid" style="gap:8px"><span class="eyebrow">${s===first?"첫 회기":"최근 회기"} · ${fmtDate(s.session_date)}</span><h3>${esc(s.topic)}</h3>
+    ${photoGroups(s)}
+    <div class="grid" style="gap:4px">${RUBRIC.map(a=>`<span class="small">${a.name} ${lvChip(s.mentor_rating?.[a.key])}</span>`).join("")}</div></div>`;
+  return `<div class="section">
+    <div class="card chart grid" style="gap:10px"><div class="row between"><h2>영역별 단계 변화 (멘토 평정)</h2>${legend(mentor)}</div>${lineChart(mentor,{labels,yFmt:lvName, left:150})}</div>
+    <div class="grid g2">
+      <div class="card chart grid" style="gap:10px"><h2>자기평가와 멘토 평정</h2>${legend(self)}${lineChart(self,{labels,h:200,yFmt:lvName,left:150})}
+        <p class="small muted" style="margin:0">두 선의 간격이 좁아질수록 자신의 수준을 정확히 판단하고 있다는 뜻입니다. 최근 차이: ${f1(gap(last))}</p></div>
+      ${gasSeries.length?`<div class="card chart grid" style="gap:10px"><h2>학기 목표 달성 척도</h2>${legend(gasSeries)}${lineChart(gasSeries,{labels,h:200,yMin:-2,yMax:2,yTicks:[-2,-1,0,1,2],yFmt:v=>v>0?"+"+v:v})}
+        <div class="small muted">${team.goals.map((g,i)=>`목표 ${i+1}: ${esc(g)}`).join("<br>")}</div></div>`:""}
+    </div>
+    ${narrativeView(sessions)}
+    ${sessions.length>1?`<h2>처음과 지금</h2><div class="grid g2">${cmp(first)}${cmp(last)}</div>`:""}
+  </div>`;
+}
+
+function rubricView(team){
+  const set = S.exSet || exSetOf(team);
+  return `<div class="section">
+    <div class="card grid" style="gap:12px"><h2>우리가 함께 쓰는 성장 단계</h2>
+    <p class="small muted" style="margin:0;max-width:70ch">모든 팀이 같은 4단계로 스스로를 점검합니다. 단계가 올라갈수록 "1단계 알아보기 → 2단계 설명하기 → 3단계 근거로 적용하기 → 4단계 새 상황에 쓰기"로 넓어집니다. 앞 단계를 할 수 있어야 다음 단계로 갑니다.</p>
+    <div class="scroll"><table class="t"><thead><tr><th>단계</th><th>정의</th><th>교수 설계 용어</th></tr></thead><tbody>
+      ${LEVEL_NAMES.map((n,i)=>`<tr><td>${lvChip(i+1)}</td><td>${esc(LEVEL_DEFS[i])}</td><td class="small muted">${LEVEL_TERMS[i]}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="row"><span class="small muted">예시 보기</span><div class="chips" role="group" aria-label="예시 영역">${Object.entries(EXAMPLES).map(([k,v])=>`<button type="button" class="btn sm ${k===set?"primary":""}" data-act="exset" data-k="${k}" aria-pressed="${k===set}">${esc(v.label)}${k===exSetOf(team)?" · 우리 팀":""}</button>`).join("")}</div></div>
+    ${RUBRIC.map(a=>`<div class="grid" style="gap:8px;padding-top:10px;border-top:1px solid var(--line)"><div><b>${a.name}</b> <span class="muted">${a.q}</span><br><span class="small muted">${a.hint}</span></div>${levelGrid(a, set)}</div>`).join("")}
+    ${pathsView(set)}
+    <h3>학기 목표 점수(GAS)</h3>
+    <p class="small muted" style="margin:0">0점이 "학기 말에 이만큼 하자"고 정한 수준입니다. 처음에는 대개 -1이나 -2에서 시작합니다.</p>
+    <div class="chips">${GAS.map(([k,l])=>`<span class="pill">${k>0?"+"+k:k} ${l}</span>`).join("")}</div>
+    </div>
+    ${practiceView()}
+  </div>`;
+}
+function pathsView(set){
+  const list = EXAMPLE_PATHS[set];
+  if(!list) return `<p class="small muted" style="margin:0">단계별 성장 예시 5가지는 초등과학·의사소통·정서행동장애 예시에서 볼 수 있습니다.</p>`;
+  return `<div class="grid" style="gap:8px;padding-top:10px;border-top:1px solid var(--line)">
+    <div class="row between"><h3>단계별 성장 예시 5가지 · ${esc(EXAMPLES[set].label)}</h3>
+      <div class="row"><span class="small muted">안내문(PDF, A4 한 장)</span>${Object.keys(GUIDE_PDF).map(k=>`<a class="btn sm ${k===set?"primary":""}" href="${GUIDE_PDF[k]}" target="_blank" rel="noopener">${esc(EXAMPLES[k].label)}</a>`).join("")}</div></div>
+    <div class="scroll"><table class="t nar"><thead><tr><th>영역 · 단원</th>${[1,2,3,4].map(v=>`<th>${lvChip(v)}</th>`).join("")}</tr></thead><tbody>
+    ${list.map((p,i)=>`<tr><td><b>${i+1}. ${esc(RUBRIC.find(a=>a.key===p.axis).name)}</b><br><span class="small muted">${esc(p.unit)}</span></td>${p.steps.map(x=>`<td class="small">${esc(x)}</td>`).join("")}</tr>`).join("")}
+    </tbody></table></div></div>`;
+}
+function practiceKey(){ return "mm-practice-"+(S.code||"admin"); }
+function practiceView(){
+  const done = S.practice || {};
+  const n = Object.keys(done).length, right = PRACTICE.filter((p,i)=>done[i]===p.answer).length;
+  return `<div class="card grid" style="gap:14px" id="practice"><div class="row between"><h2>루브릭 연습 3문항</h2><span class="pill ${n===3?"ok":""}">${n}/3 풀이${n===3?` · ${right}개 일치`:""}</span></div>
+    <p class="small muted" style="margin:0;max-width:70ch">첫 기록 전에 멘토와 멘티가 함께 풀어 보세요. 장면을 읽고, 해당 영역에서 몇 단계인지 고르면 해설이 나옵니다. 같은 장면을 같은 단계로 보는 연습이 평정을 정확하게 만듭니다.</p>
+    ${PRACTICE.map((p,i)=>{ const a=RUBRIC.find(r=>r.key===p.axis); const c=done[i];
+      return `<div class="grid" style="gap:8px;padding-top:10px;border-top:1px solid var(--line)">
+        <div class="row"><span class="pill">문항 ${i+1}</span><span class="pill">${esc(EXAMPLES[p.set].label)}</span><span class="small"><b>${a.name}</b> 영역은 몇 단계일까요?</span></div>
+        <p style="margin:0">${esc(p.text)}</p>
+        <div class="scale">${[1,2,3,4].map(v=>`<button type="button" class="btn sm ${c===v?(v===p.answer?"primary":"danger"):""}" data-act="practice" data-i="${i}" data-v="${v}">${lvName(v)}</button>`).join("")}</div>
+        ${c?`<div class="msg ${c===p.answer?"admin":""}"><span class="who">${c===p.answer?"맞았어요":"다시 생각해 보세요 · 정답 "+lvName(p.answer)}</span>${esc(p.why[c-1])}${c!==p.answer?"\n정답 해설: "+esc(p.why[p.answer-1]):""}\n기준: ${esc(a.levels[p.answer-1])}</div>`:""}
+      </div>`; }).join("")}
+  </div>`;
+}
+
+/* ───────── 교수자 화면 ───────── */
+function previewTeam(){
+  const d=S.data, t=d.teams.find(x=>x.id===S.viewAs);
+  if(!t){ S.viewAs=null; return viewAdmin(); }
+  const b={ team:t, sessions:d.sessions.filter(x=>x.team_id===t.id), comments:d.comments.filter(x=>x.team_id===t.id), notices:d.notices.filter(n=>!n.team_id||n.team_id===t.id) };
+  const saveTab=S.tab; S.data=b; S.tab=S.pvTab||"home"; S.preview=true;
+  let html;
+  try{ html = viewTeam(); } finally { S.data=d; S.tab=saveTab; S.preview=false; }
+  html = html.replace(/data-tab="/g,'data-pvtab="');
+  return `<div class="banner" style="display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap">학생 화면 미리보기 · ${esc(t.name)} (학생이 보는 화면 그대로이며, 여기서는 저장되지 않습니다) <button class="btn sm" data-act="pv-exit">교수자 화면으로 돌아가기</button></div>` + html;
+}
+function viewAdmin(){
+  if(S.viewAs) return previewTeam();
+  const tabs=[["home","현황"],["feed","활동·피드백"],["teams","팀 관리"],["notice","공지"],["export","내보내기·학기 종료"]];
+  let body="";
+  if(S.tab==="home") body=adminHome();
+  if(S.tab==="feed"){ body=adminFeed(); markSeen(); }
+  if(S.tab==="teams") body=adminTeams();
+  if(S.tab==="notice") body=adminNotice();
+  if(S.tab==="export") body=adminExport();
+  return header("교수자 대시보드", `${S.data.teams.length}개 팀 · 운영 종료 ${fmtDate(CONFIG.SEMESTER_END)}`, tabs) + `<main class="wrap">${body}</main>`;
+}
+function teamStats(t){
+  const ss = S.data.sessions.filter(s=>s.team_id===t.id);
+  const cs = S.data.comments.filter(c=>c.team_id===t.id);
+  const last = ss.at(-1);
+  return { ss, n:ss.length, mins:ss.reduce((p,s)=>p+(+s.minutes||0),0), photos:ss.reduce((p,s)=>p+(s.photos||[]).length,0),
+    last: last?.session_date, ds: daysSince(last?.session_date),
+    first: ss.length? sessionLevel(ss[0]) : null, cur: mean(RUBRIC.map(a=>latestAxis(ss,a.key))),
+    gap: mean(ss.map(gap)), pending: ss.filter(s=>!cs.some(c=>c.session_id===s.id&&c.role==="admin")).length,
+    replies: cs.filter(c=>c.role!=="admin").length, fb: cs.filter(c=>c.role==="admin").length };
+}
+function adminHome(){
+  const {teams,sessions} = S.data;
+  if(!teams.length) return `<div class="card empty section">등록된 팀이 없습니다. <button class="btn primary" data-tab="teams">팀 만들기</button></div>`;
+  const st = teams.map(t=>({t,...teamStats(t)}));
+  const pending = st.reduce((p,x)=>p+x.pending,0);
+  const idle = st.filter(x=>x.ds==null||x.ds>=14);
+  const colors=["var(--ax1)","var(--ax2)","var(--ax3)","var(--crit)","var(--muted)"];
+  const maxN = Math.max(2,...st.map(x=>x.n));
+  const series = st.map((x,i)=>({name:x.t.name,color:colors[i%5],values:x.ss.map(sessionLevel)}));
+  const words = {}; sessions.forEach(s=>((s.unit||"")+" "+(s.topic||"")+" "+(s.content||"")+" "+(s.difficulty||"")+" "+Object.values(s.narrative||{}).join(" ")).split(/[\s,.()·/'"!?~\-:;]+/).forEach(w=>{ w=w.replace(/(을|를|이|가|은|는|의|에|와|과|도|로|으로|에서|하기|하고|했다|한다)$/,""); if(w.length>=2&&!STOP.has(w)&&!/^\d+$/.test(w)) words[w]=(words[w]||0)+1; }));
+  const top = Object.entries(words).sort((a,b)=>b[1]-a[1]).slice(0,18);
+  return `<div class="section">
+    <div class="grid g4">
+      <div class="card stat"><div class="k">전체 회기</div><div class="v">${sessions.length}</div></div>
+      <div class="card stat"><div class="k">누적 시간</div><div class="v">${(st.reduce((p,x)=>p+x.mins,0)/60).toFixed(1)}<span class="small muted">h</span></div></div>
+      <div class="card stat"><div class="k">피드백 대기</div><div class="v" style="color:${pending?"var(--warn)":"inherit"}">${pending}</div><button class="btn sm" data-tab="feed">바로 가기</button></div>
+      <div class="card stat"><div class="k">2주 이상 미활동 팀</div><div class="v" style="color:${idle.length?"var(--crit)":"inherit"}">${idle.length}</div><span class="small muted">${idle.map(x=>esc(x.t.name)).join(", ")||"없음"}</span></div>
+    </div>
+    <div class="card"><div class="scroll"><table class="t"><thead><tr><th>팀</th><th>주제</th><th>회기</th><th>시간</th><th>사진</th><th>마지막 활동</th><th>현재 단계 (영역별, 학생 화면과 동일)</th><th>자기-멘토 차이</th><th>피드백 대기</th><th>학생 답글</th></tr></thead><tbody>
+      ${st.map(x=>`<tr><td><b>${esc(x.t.name)}</b><br><span class="small muted">${esc(x.t.mentor)} → ${esc(x.t.mentee)}</span><br><button class="btn sm" style="white-space:nowrap;margin-top:4px" data-act="pv-open" data-id="${x.t.id}">학생 화면 보기</button></td><td class="small">${esc(x.t.topic)}<br><span class="pill">${esc(EXAMPLES[exSetOf(x.t)].label)}</span></td>
+        <td class="n">${x.n}</td><td class="n">${(x.mins/60).toFixed(1)}h</td><td class="n">${x.photos}</td>
+        <td>${x.last?fmtDate(x.last):"-"} ${x.ds!=null?`<span class="pill ${x.ds>=14?"crit":x.ds>=7?"warn":"ok"}">${x.ds}일 전</span>`:`<span class="pill crit">기록 없음</span>`}</td>
+        <td><div class="grid" style="gap:3px">${RUBRIC.map(a=>`<span class="small" style="white-space:nowrap">${a.name} ${lvChip(latestAxis(x.ss,a.key))}</span>`).join("")}</div></td><td class="n">${x.gap==null?"-":(x.gap>0?"+":"")+x.gap.toFixed(2)}</td>
+        <td class="n">${x.pending?`<span class="pill warn">${x.pending}</span>`:"0"}</td><td class="n">${x.replies}</td></tr>`).join("")}
+    </tbody></table></div><p class="small muted" style="margin:8px 0 0">자기-멘토 차이가 +이면 멘티가 스스로를 높게, −이면 낮게 평가하는 경향입니다.</p></div>
+    <div class="grid g2">
+      <div class="card chart grid" style="gap:10px"><div class="row between"><h2>팀별 회기 평균 단계</h2>${legend(series)}</div>${lineChart(series,{labels:Array.from({length:maxN},(_,i)=>(i+1)+"회"),yFmt:lvName,left:150})}</div>
+      <div class="card grid" style="gap:10px;align-content:start"><h2>기록에 자주 나온 낱말</h2><p class="small muted" style="margin:0">단원·주제·내용·어려움·서술형 기록 기준 (상위 18)</p>
+        <div class="chips">${top.map(([w,c])=>`<span class="pill" style="font-size:${Math.min(1.1,.75+c*.06)}rem">${esc(w)} <span class="num">${c}</span></span>`).join("")||`<span class="muted small">자료가 쌓이면 표시됩니다.</span>`}</div></div>
+    </div></div>`;
+}
+function adminFeed(){
+  const {teams,sessions} = S.data;
+  const f = S.filterTeam;
+  let list = f==="all"? sessions : f==="pending"? sessions.filter(s=>!S.data.comments.some(c=>c.session_id===s.id&&c.role==="admin")) : sessions.filter(s=>s.team_id===f);
+  return `<div class="section"><div class="row"><label class="f" style="min-width:220px">보기<select id="flt">
+    <option value="all" ${f==="all"?"selected":""}>전체 팀</option><option value="pending" ${f==="pending"?"selected":""}>피드백 대기만</option>
+    ${teams.map(t=>`<option value="${t.id}" ${f===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label></div></div>` + timeline(list, true);
+}
+function adminTeams(){
+  const {teams} = S.data;
+  const form = (t={}) => `<form class="card grid" data-form="team" data-id="${t.id||""}" style="gap:10px">
+    <div class="row between"><h3>${t.id?esc(t.name):"새 팀 만들기"}</h3>${t.id?`<span class="row"><span class="pill ok num">코드 ${esc(t.code)}</span><button type="button" class="btn sm" data-act="pv-open" data-id="${t.id}">학생 화면 보기</button><button type="button" class="btn sm danger" data-act="del-team" data-id="${t.id}">팀 삭제</button></span>`:""}</div>
+    <div class="grid g2">
+      <label class="f req">팀 이름<input id="tn-${t.id||"new"}" type="text" value="${esc(t.name)}" required></label>
+      <label class="f ${t.id?"":"req"}">팀 PIN ${t.id?"(바꿀 때만 입력)":"(4자리 이상)"}<input id="tp-${t.id||"new"}" type="text" inputmode="numeric" ${t.id?"":"required"} autocomplete="off"></label>
+      <label class="f">멘토<input id="tm-${t.id||"new"}" type="text" value="${esc(t.mentor)}"></label>
+      <label class="f">멘티<input id="te-${t.id||"new"}" type="text" value="${esc(t.mentee)}"></label>
+    </div>
+    <label class="f">루브릭 예시 영역<select id="tx-${t.id||"new"}">${Object.entries(EXAMPLES).map(([k,v])=>`<option value="${k}" ${exSetOf(t)===k?"selected":""}>${esc(v.label)}</option>`).join("")}</select></label>
+    <label class="f">주제·전공 영역<input id="tt-${t.id||"new"}" type="text" value="${esc(t.topic)}" placeholder="예: 자폐성장애 학생 의사소통 지원"></label>
+    <label class="f">학기 목표 (한 줄에 하나, 최대 3개)<textarea id="tg-${t.id||"new"}" placeholder="예: AAC 유형 5가지를 비교해 설명한다">${esc((t.goals||[]).join("\n"))}</textarea></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary">${t.id?"저장":"팀 만들기"}</button></div></form>`;
+  return `<div class="section">${teams.length>=5?`<p class="small muted">팀이 5개입니다. 계획한 최대 팀 수에 도달했습니다.</p>`:form()}${teams.map(form).join("")}</div>`;
+}
+function adminNotice(){
+  const {teams,notices} = S.data;
+  return `<div class="section"><form class="card grid" data-form="notice" style="gap:10px"><h2>공지 보내기</h2>
+    <label class="f">대상<select id="n-team"><option value="">전체 팀</option>${teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+    <label class="f req">내용<textarea id="n-body" required></textarea></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary">공지 보내기</button></div></form>
+    ${notices.map(n=>`<div class="card row between"><div><span class="eyebrow">${fmtTime(n.created_at)} · ${n.team_id?esc(teams.find(t=>t.id===n.team_id)?.name||""):"전체"}</span><div style="white-space:pre-wrap">${esc(n.body)}</div></div><button class="btn sm danger" data-act="del-notice" data-id="${n.id}">삭제</button></div>`).join("")}</div>`;
+}
+function adminExport(){
+  const end = CONFIG.SEMESTER_END; const left = -daysSince(end);
+  return `<div class="section">
+    <div class="card grid" style="gap:10px"><h2>자료 내보내기</h2>
+      <p class="small muted" style="margin:0">결과보고서·연구 분석용입니다. CSV는 엑셀에서 바로 열립니다.</p>
+      <div class="row"><button class="btn" data-act="exp-sessions">활동기록 CSV</button><button class="btn" data-act="exp-comments">피드백·답글 CSV</button><button class="btn" data-act="exp-summary">팀별 요약 CSV</button><button class="btn" data-act="exp-json">전체 JSON 백업</button><button class="btn" data-act="exp-zip">활동 사진 ZIP</button></div>
+      <p class="small muted" id="zip-status" style="margin:0"></p></div>
+    <div class="card grid" style="gap:10px;border-color:var(--crit)"><h2>학기 종료</h2>
+      <p style="margin:0">운영 종료일 ${end} ${left>0?`(${left}일 남음)`:"(종료일 지남)"}</p>
+      <ol class="small" style="margin:0;padding-left:20px"><li>위의 CSV·JSON·사진 ZIP을 모두 내려받아 보관합니다.</li><li>아래에 <b>학기종료</b>를 입력하고 삭제하면 팀·기록·피드백·공지가 모두 지워집니다.</li><li>사진 파일은 Supabase 대시보드 > Storage > mm-photos 에서 Empty bucket 으로 비웁니다.</li><li>필요 없으면 Supabase 프로젝트를 삭제하여 무료 프로젝트 자리를 돌려받습니다.</li></ol>
+      <form class="row" data-form="purge"><input id="purge-txt" type="text" placeholder="학기종료" style="max-width:200px"><button class="btn danger">모든 기록 삭제</button></form></div>
+  </div>`;
+}
+
+/* ───────── 이벤트 ───────── */
+document.addEventListener("click", async e=>{
+  const tab = e.target.closest("[data-tab]");
+  if(tab){ S.tab=tab.dataset.tab; render(); window.scrollTo(0,0); return; }
+  const pv = e.target.closest("[data-pvtab]");
+  if(pv){ S.pvTab=pv.dataset.pvtab; render(); window.scrollTo(0,0); return; }
+  const el = e.target.closest("[data-act]"); if(!el) return;
+  const act = el.dataset.act;
+  try{
+    if(act==="logout") return logout();
+    if(act==="refresh"){ await refresh(); return toast("최신 기록을 불러왔습니다."); }
+    if(act==="zoom"){ $("#viewerImg").src=el.src; $("#viewer").showModal(); return; }
+    if(act==="pv-open"){ S.viewAs=el.dataset.id; S.pvTab="home"; render(); window.scrollTo(0,0); return; }
+    if(act==="pv-exit"){ S.viewAs=null; render(); window.scrollTo(0,0); return; }
+    if(act==="exset"){ S.exSet=el.dataset.k; render(); return; }
+    if(act==="practice"){ S.practice={...(S.practice||{}),[el.dataset.i]:+el.dataset.v}; store.set(practiceKey(),S.practice); const y=window.scrollY; render(); window.scrollTo(0,y); return; }
+    if(act==="rm-photo"){ const k=el.dataset.kind; URL.revokeObjectURL(S.draft[k][+el.dataset.i].url); S.draft[k].splice(+el.dataset.i,1); updateThumbs(k); return; }
+    if(act==="del-session" && confirm("이 활동기록과 댓글을 삭제할까요?")){ await rpc("mm_admin_delete_session",{p_pin:S.pin,p_id:el.dataset.id}); await refresh(); toast("삭제했습니다."); }
+    if(act==="del-team" && confirm("팀과 그 팀의 모든 기록을 삭제할까요? 되돌릴 수 없습니다.")){ await rpc("mm_admin_delete_team",{p_pin:S.pin,p_id:el.dataset.id}); await refresh(); toast("팀을 삭제했습니다."); }
+    if(act==="del-notice"){ await rpc("mm_admin_delete_notice",{p_pin:S.pin,p_id:el.dataset.id}); await refresh(); }
+    if(act.startsWith("exp-")) await doExport(act, el);
+  }catch(err){ toast(err.message); }
+});
+$("#viewer").addEventListener("click",()=>$("#viewer").close());
+document.addEventListener("change", async e=>{
+  if(e.target.id==="flt"){ S.filterTeam=e.target.value; render(); }
+  if(e.target.id?.startsWith("w-photo-")){ await addPhotos(e.target.files, e.target.dataset.kind); e.target.value=""; }
+});
+document.addEventListener("keydown", e=>{ const d=e.target.closest?.(".drop"); if(d && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); $("#w-photo-"+d.dataset.kind).click(); } });
+document.addEventListener("click", e=>{ const d=e.target.closest?.(".drop"); if(d && e.target.tagName!=="INPUT") $("#w-photo-"+d.dataset.kind).click(); });
+document.addEventListener("focusin", async e=>{
+  if(e.target.id==="lg-apin" && !S._statusChecked){ S._statusChecked=true;
+    try{ const ok = await rpc("mm_admin_status"); if(!ok){ $("#lg-apin2-wrap").hidden=false; $("#adm-hint").textContent="처음 사용합니다. 교수자 PIN(6자리 이상)을 정해 두 번 입력하세요."; $("#adm-btn").textContent="PIN 설정하고 입장"; S._needInit=true; } }catch(_){}
+  }
+});
+
+function thumbsHTML(k){ return S.draft[k].map((p,i)=>`<div><img src="${p.url}" alt="${PHOTO_KINDS[k].label} ${i+1}"><button type="button" data-act="rm-photo" data-kind="${k}" data-i="${i}" aria-label="사진 빼기">✕</button></div>`).join(""); }
+async function addPhotos(files, k){
+  for(const f of [...files]){
+    if(S.draft[k].length>=PHOTO_KINDS[k].max){ toast(`${PHOTO_KINDS[k].label}은 ${PHOTO_KINDS[k].max}장까지 올릴 수 있습니다.`); break; }
+    if(!f.type.startsWith("image/")) continue;
+    const blob = await compress(f);
+    S.draft[k].push({blob, url:URL.createObjectURL(blob)});
+  }
+  updateThumbs(k);
+}
+function updateThumbs(k){
+  const el=$("#thumbs-"+k); if(!el) return;
+  el.innerHTML = thumbsHTML(k);
+  $("#drop-"+k).classList.remove("bad");
+}
+const radio = n => { const r=document.querySelector(`input[name="${n}"]:checked`); return r? +r.value : undefined; };
+
+document.addEventListener("submit", async e=>{
+  const form = e.target.closest("[data-form]"); if(!form) return;
+  e.preventDefault();
+  const btn = form.querySelector("button:not([type=button])"); if(btn) btn.disabled=true;
+  const kind = form.dataset.form;
+  try{
+    if(kind==="team-login"){
+      const code=$("#lg-code").value.trim().toUpperCase(), pin=$("#lg-pin").value;
+      S.data = await rpc("mm_team_login",{p_code:code,p_pin:pin});
+      Object.assign(S,{role:"team",code,pin,tab:"home",exSet:null}); S.practice=store.get(practiceKey(),{}); saveAuth(); connectLive(); render();
+    }
+    if(kind==="admin-login"){
+      const pin=$("#lg-apin").value;
+      if(S._needInit){ if(pin!==$("#lg-apin2").value) throw new Error("두 PIN이 다릅니다."); await rpc("mm_admin_init",{p_pin:pin}); }
+      S.data = await rpc("mm_admin_all",{p_pin:pin});
+      Object.assign(S,{role:"admin",pin,tab:"home"}); saveAuth(); connectLive(); render();
+    }
+    if(kind==="session"){
+      for(const k of ["face","output"]) if(!S.draft[k].length){ const d=$("#drop-"+k); d.classList.add("bad"); d.scrollIntoView({block:"center"}); throw new Error(`${PHOTO_KINDS[k].label}을 1장 이상 올려 주세요.`); }
+      if(!$("#w-consent").checked) throw new Error("사진 촬영·보관 동의에 체크해 주세요.");
+      const st=$("#w-status"); st.textContent="사진 올리는 중…";
+      const urls=[]; for(const k of ["face","output"]) for(const p of S.draft[k]) urls.push({kind:k, url:await uploadPhoto(S.data.team.id, p.blob, k)});
+      st.textContent="저장하는 중…";
+      const self_rating={}, mentor_rating={}, gas={};
+      RUBRIC.forEach(a=>{ const s=radio("self-"+a.key), m=radio("mentor-"+a.key); if(s) self_rating[a.key]=s; if(m) mentor_rating[a.key]=m; });
+      (S.data.team.goals||[]).forEach((g,i)=>{ const v=radio("gas-"+i); if(v!==undefined) gas[i]=v; });
+      const narrative={ mentor_note:$("#nar-mentor").value.trim(), next_step:$("#nar-next").value.trim() };
+      RUBRIC.forEach(a=>{ const v=$("#nar-"+a.key).value.trim(); if(v) narrative[a.key]=v; });
+      const p = { session_date:$("#w-date").value, minutes:+$("#w-min").value, mode:$("#w-mode").value, place:$("#w-place").value.trim(),
+        topic:$("#w-topic").value.trim(), unit:$("#w-unit").value.trim(), content:$("#w-content").value.trim(), output_link:$("#w-link").value.trim(),
+        difficulty:$("#w-diff").value.trim(), next_plan:$("#w-next").value.trim(), photos:urls, self_rating, mentor_rating, gas, narrative, author:$("#w-author").value };
+      const r = await rpc("mm_team_add_session",{p_code:S.code,p_pin:S.pin,p});
+      ["face","output"].forEach(k=>S.draft[k].forEach(p=>URL.revokeObjectURL(p.url))); S.draft={face:[],output:[]};
+      ping(r.team_id); S.tab="growth"; await refresh(); toast("기록을 저장했습니다. 성장 그래프에 반영되었습니다.");
+    }
+    if(kind==="comment"){
+      const id=form.dataset.id, body=$("#c-"+id).value.trim(); if(!body) return;
+      let tid;
+      if(S.role==="admin") tid = await rpc("mm_admin_comment",{p_pin:S.pin,p_session:id,p_body:body});
+      else { const role=$("#who-"+id).value; tid = await rpc("mm_team_comment",{p_code:S.code,p_pin:S.pin,p_session:id,p_role:role,p_author:role==="mentor"?S.data.team.mentor:S.data.team.mentee,p_body:body}); }
+      ping(tid); await refresh(); markSeen(); toast(S.role==="admin"?"피드백을 보냈습니다.":"답글을 남겼습니다.");
+      $("#s-"+id)?.scrollIntoView({block:"center"});
+    }
+    if(kind==="team"){
+      const k=form.dataset.id||"new";
+      const p={ id:form.dataset.id||null, name:$("#tn-"+k).value.trim(), pin:$("#tp-"+k).value.trim(), mentor:$("#tm-"+k).value.trim(), mentee:$("#te-"+k).value.trim(),
+        topic:$("#tt-"+k).value.trim(), example_set:$("#tx-"+k).value, goals:$("#tg-"+k).value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,3) };
+      const t = await rpc("mm_admin_save_team",{p_pin:S.pin,p}); ping(t.id); await refresh();
+      toast(p.id? "저장했습니다." : `팀을 만들었습니다. 팀 코드 ${t.code} · PIN ${p.pin} 을 학생에게 알려 주세요.`);
+    }
+    if(kind==="notice"){
+      const team=$("#n-team").value||null;
+      await rpc("mm_admin_notice",{p_pin:S.pin,p_team:team,p_body:$("#n-body").value.trim()}); ping(team); await refresh(); toast("공지를 보냈습니다.");
+    }
+    if(kind==="purge"){
+      if($("#purge-txt").value!=="학기종료") throw new Error("확인 문구 '학기종료'를 정확히 입력해 주세요.");
+      if(!confirm("모든 팀·기록·피드백을 삭제합니다. 내보내기를 마쳤나요?")) return;
+      await rpc("mm_admin_purge",{p_pin:S.pin,p_confirm:"학기종료"}); await refresh(); toast("모든 기록을 삭제했습니다. 사진 저장소도 비워 주세요.");
+    }
+  }catch(err){ toast(err.message); const st=$("#w-status"); if(st) st.textContent=""; }
+  finally{ if(btn && document.contains(btn)) btn.disabled=false; }
+});
+
+async function doExport(act, el){
+  const {teams,sessions,comments} = S.data; const tn = id => teams.find(t=>t.id===id)?.name||"";
+  const stamp = today();
+  if(act==="exp-sessions"){
+    const head=["팀","날짜","시간(분)","방식","장소","공부한단원","주제","학습내용","어려웠던점","다음계획","산출물","사진수","사진주소",
+      ...RUBRIC.flatMap(a=>[a.name+"_자기",a.name+"_멘토",a.name+"_근거"]),"멘토관찰","다음단계준비","GAS1","GAS2","GAS3","작성자","작성시각"];
+    const rows=sessions.map(s=>[tn(s.team_id),s.session_date,s.minutes,s.mode,s.place,s.unit||"",s.topic,s.content,s.difficulty,s.next_plan,s.output_link,(s.photos||[]).length,cloud?(s.photos||[]).map(p=>(pKind(p)==="face"?"인증:":"결과물:")+pUrl(p)).join(" "):"(시연 모드)",
+      ...RUBRIC.flatMap(a=>[s.self_rating?.[a.key]??"",s.mentor_rating?.[a.key]??"",s.narrative?.[a.key]??""]), s.narrative?.mentor_note??"", s.narrative?.next_step??"", s.gas?.[0]??"", s.gas?.[1]??"", s.gas?.[2]??"", s.author, s.created_at]);
+    download(`활동기록_${stamp}.csv`, toCSV([head,...rows]));
+  }
+  if(act==="exp-comments"){
+    const rows=comments.map(c=>{ const s=sessions.find(x=>x.id===c.session_id)||{}; return [tn(c.team_id),s.session_date,s.topic,c.role==="admin"?"교수자":c.role==="mentor"?"멘토":"멘티",c.author,c.body,c.created_at]; });
+    download(`피드백_${stamp}.csv`, toCSV([["팀","기록날짜","기록주제","역할","작성자","내용","작성시각"],...rows]));
+  }
+  if(act==="exp-summary"){
+    const rows=teams.map(t=>{ const x=teamStats(t); return [t.name,t.topic,EXAMPLES[exSetOf(t)].label,t.mentor,t.mentee,x.n,x.mins,x.photos,x.last||"",x.first==null?"":x.first.toFixed(2),x.cur==null?"":x.cur.toFixed(2),x.gap==null?"":x.gap.toFixed(2),x.fb,x.replies,x.pending,(t.goals||[]).join(" / ")]; });
+    download(`팀별요약_${stamp}.csv`, toCSV([["팀","주제","예시영역","멘토","멘티","회기수","누적분","사진수","마지막활동","첫회기단계","현재단계","자기-멘토차이","교수자피드백수","학생답글수","피드백대기","학기목표"],...rows]));
+  }
+  if(act==="exp-json") download(`동행기록_백업_${stamp}.json`, JSON.stringify({exported_at:new Date().toISOString(),rubric:RUBRIC,...S.data},null,2), "application/json");
+  if(act==="exp-zip"){
+    if(!window.JSZip) throw new Error("압축 도구를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
+    const st=$("#zip-status"); const zip=new JSZip(); let i=0; const total=sessions.reduce((p,s)=>p+(s.photos||[]).length,0);
+    el.disabled=true;
+    for(const s of sessions){ for(const [k,ph] of (s.photos||[]).entries()){ const url=pUrl(ph);
+      i++; st.textContent=`사진 모으는 중 ${i}/${total}`;
+      try{ const b = await (await fetch(url)).blob(); zip.file(`${tn(s.team_id)}/${s.session_date}_${(s.topic||"").slice(0,20).replace(/[\\/:*?"<>|]/g,"")}_${pKind(ph)==="face"?"인증":"결과물"}${k+1}.jpg`, b); }catch(_){}
+    }}
+    st.textContent="압축하는 중…";
+    download(`활동사진_${stamp}.zip`, await zip.generateAsync({type:"blob"}), "application/zip");
+    st.textContent=`사진 ${total}장을 압축했습니다.`; el.disabled=false;
+  }
+}
+
+/* ───────── 시연 자료 ───────── */
+function demoPhoto(label, hue){
+  try{
+    const c=document.createElement("canvas"); c.width=480; c.height=360; const g=c.getContext("2d");
+    const gr=g.createLinearGradient(0,0,480,360); gr.addColorStop(0,`hsl(${hue} 32% 78%)`); gr.addColorStop(1,`hsl(${hue+30} 30% 58%)`);
+    g.fillStyle=gr; g.fillRect(0,0,480,360);
+    g.fillStyle="rgba(255,255,255,.85)"; g.fillRect(60,70,220,160); g.fillRect(300,110,120,150);
+    g.fillStyle=`hsl(${hue} 30% 35%)`; for(let i=0;i<6;i++) g.fillRect(80,95+i*22,150-(i%3)*30,8);
+    g.fillStyle="rgba(0,0,0,.55)"; g.fillRect(0,300,480,60);
+    g.fillStyle="#fff"; g.font="bold 22px sans-serif"; g.fillText("시연용 활동 사진 · "+label,20,338);
+    return c.toDataURL("image/jpeg",.7);
+  }catch(e){ return ""; }
+}
+function seedDemo(){
+  const d = new Date(); const ago = n => { const x=new Date(d); x.setDate(x.getDate()-n); x.setMinutes(x.getMinutes()-x.getTimezoneOffset()); return x.toISOString().slice(0,10); };
+  const ts = n => new Date(Date.now()-n*86400000+3600000*5).toISOString();
+  const A={id:"demo-a",code:"TDEMOA",pin:"1111",name:"의사소통 팀(예시)",topic:"자폐성장애 학생 의사소통 지원(AAC)",example_set:"comm",mentor:"김서연",mentee:"박도윤",goals:["AAC 유형을 비교해 설명한다","PECS 단계별 지도안 1편을 완성한다","사례 학생에게 맞는 AAC 선택 근거를 제시한다"],created_at:ts(40)};
+  const B={id:"demo-b",code:"TDEMOB",pin:"2222",name:"정서행동 팀(예시)",topic:"정서행동장애 학생 긍정적 행동지원",example_set:"ebd",mentor:"이하준",mentee:"최지우",goals:["행동의 기능 4가지를 사례로 설명한다","기능평가 기반 행동지원계획 1편을 작성한다"],created_at:ts(40)};
+  const C={id:"demo-c",code:"TDEMOC",pin:"3333",name:"초등과학 팀(예시)",topic:"지적장애 학생 초등 과학 교수적 수정",example_set:"science",mentor:"정민재",mentee:"한소희",goals:["탐구 과정 기능을 수업 장면으로 설명한다"],created_at:ts(40)};
+  const UNITS={"demo-a":"의사소통장애 > 보완대체의사소통(AAC)","demo-b":"정서·행동장애 > 긍정적 행동지원","demo-c":"초등 과학 > 자석의 이용·물의 상태 변화"};
+  const mk=(t,n,topic,content,self,mentor,gas,diff,next,hue)=>({id:`${t.id}-s${n}`,team_id:t.id,session_date:ago(n),unit:UNITS[t.id],narrative:{a1:`${topic}에서 핵심 내용을 ${mentor[0]>=3?"근거와 함께 비교했다":mentor[0]>=2?"내 말로 설명했다":"찾아 정리했다"}`,mentor_note:mentor[1]>=3?"사례에 맞는 전략을 근거와 함께 골랐다.":"전략 제안은 했지만 근거 제시가 부족하다.",next_step:next},minutes:[60,90,75,60,120][n%5],mode:n%3?"대면":"비대면(화상)",place:n%3?"사범대 스터디룸":"",topic,content,output_link:"",difficulty:diff,next_plan:next,
+    photos:[{kind:"face",url:demoPhoto("활동 인증 "+fmtDate(ago(n)),hue)},{kind:"output",url:demoPhoto("결과물 "+fmtDate(ago(n)),hue+60)}],self_rating:{a1:self[0],a2:self[1],a3:self[2]},mentor_rating:{a1:mentor[0],a2:mentor[1],a3:mentor[2]},gas,author:t.mentor+" (멘토)",created_at:ts(n)});
+  const sessions=[
+    mk(A,33,"AAC의 개념과 유형","보조공학·AAC 정의를 정리하고 비도구·도구 AAC를 구분했다. 로우테크와 하이테크 예시를 찾아 표로 만들었다.",[2,1,1],[1,1,1],{0:-1,1:-2,2:-2},"상징 체계 용어가 헷갈림","PECS 1~2단계 영상 사례 분석",150),
+    mk(A,26,"PECS 1~3단계 절차","교환 개시, 거리와 지속성, 그림 변별 단계의 촉진과 오류 교정을 영상 사례로 분석했다.",[2,2,2],[2,1,2],{0:0,1:-1,2:-2},"촉진 용암 시점 판단","3단계 변별 훈련 지도안 초안",150),
+    mk(A,19,"사례 학생 AAC 선택","가상 사례(초3, 자폐성장애, 구어 제한)에 대해 SETT 틀로 요구를 분석하고 AAC 후보를 비교했다.",[3,2,2],[2,2,2],{0:1,1:-1,2:-1},"환경 요인 분석이 부족함","지도안 완성과 평가 계획",150),
+    mk(A,12,"PECS 지도안 작성","3단계 변별 훈련 지도안을 작성하고 자료 수집 양식(시도별 기록지)을 설계했다.",[3,3,3],[2,3,2],{0:1,1:0,2:0},"일반화 계획 수립","변형 사례 적용",150),
+    mk(A,4,"변형 사례 적용과 설명","중학생 사례로 바꾸어 AAC 선택 근거를 멘티가 직접 설명하고 질문에 답했다. 평가 방법까지 설계했다.",[4,3,3],[3,3,3],{0:2,1:1,2:1},"","임용 논술형 문항에 연결",150),
+    mk(B,30,"PBS 3단계 예방 모델","보편·표적·개별 지원의 차이를 정리하고 학교 차원 PBS 사례를 읽었다.",[2,1,1],[1,1,1],{0:-1,1:-2},"표적 지원과 개별 지원의 경계가 헷갈림","행동의 기능 학습",40),
+    mk(B,21,"행동의 기능과 ABC 기록","관심·회피·획득·감각 기능을 사례로 구분하고 ABC 기록지를 함께 작성했다.",[2,2,2],[2,1,2],{0:0,1:-1},"가설 문장 쓰기가 어려움","기능평가 가설 문장 연습",40),
+    mk(B,9,"행동지원계획 작성","회피 기능 사례로 선행사건 수정, 대체행동 교수, 후속결과 전략을 담은 계획을 작성했다.",[3,2,2],[3,2,2],{0:1,1:0},"대체행동 선정 기준","효과 확인용 기록 그래프 설계",40),
+    mk(C,18,"탐구 과정 기능 정리","관찰·분류·측정·예상·추리·의사소통 기능을 정리하고 초4 과학 단원에서 해당 장면을 찾았다.",[2,1,1],[1,1,1],{0:-1},"관찰과 추리 구분","자석 단원 수정안 작성",210)
+  ];
+  const cm=(s,role,author,body,n)=>({id:uid(),session_id:s,team_id:s.split("-s")[0],role,author,body,created_at:ts(n)});
+  return { admin_pin:"000000", teams:[A,B,C], sessions,
+    comments:[cm("demo-a-s33","admin","교수자","AAC 유형 비교표가 잘 정리되었습니다. 다음에는 상징의 투명성(transparency) 개념을 함께 정리해 보세요.",32),
+      cm("demo-a-s33","mentee","박도윤","투명성과 반투명성의 예시를 더 찾아보겠습니다.",31),
+      cm("demo-a-s19","admin","교수자","SETT 분석이 좋습니다. 환경(E) 요인에 가정·통합학급 상황을 추가하면 선택 근거가 더 탄탄해집니다.",18),
+      cm("demo-a-s12","admin","교수자","자료 수집 양식이 현장에서 바로 쓸 수 있는 수준입니다. 일반화 단계(장소·사람 바꾸기)를 지도안에 넣어 보세요.",10),
+      cm("demo-b-s21","admin","교수자","ABC 기록이 구체적입니다. 가설은 '~할 때, ~하기 위해, ~한다' 형식으로 써 보세요.",20),
+      cm("demo-b-s21","mentor","이하준","다음 회기에 가설 문장 5개를 만들어 연습하겠습니다.",19)],
+    notices:[{id:uid(),team_id:null,body:"10월 셋째 주 중간 점검 모임이 있습니다. 팀별 성장 그래프를 확인하고 오세요.",created_at:ts(6)}] };
+}
+
+/* ───────── 시작 ───────── */
+(async function start(){
+  const a = store.sget("mm-auth");
+  if(a && a.role){ Object.assign(S,a); await refresh(true); if(!S.data){ logout(); } else connectLive(); }
+  else render();
+  setInterval(()=>{ if(S.role && document.visibilityState==="visible") refresh(true); }, 60000);
+})();
+</script>
+</body>
+</html>
