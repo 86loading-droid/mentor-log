@@ -160,7 +160,6 @@ dialog img{display:block;max-height:80vh}
 <!--BODY-SCRIPTS-->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="config.js"></script>
 <script>
 /* ───────── 설정: Supabase 프로젝트 값을 넣으면 공유(클라우드) 모드로 동작합니다 ───────── */
 /* 연결값은 같은 폴더의 config.js 에서 읽습니다: window.MM_CONFIG = { url: "...", key: "..." } */
@@ -229,8 +228,23 @@ const lvName = v => `${v}단계 ${LEVEL_NAMES[v-1]}`;
 const GAS = [[-2,"기초선보다 낮음"],[-1,"기초선"],[0,"기대 수준 달성"],[1,"기대 이상"],[2,"기대보다 훨씬 높음"]];
 const STOP = new Set("그리고 그래서 하지만 대한 대해 위한 통해 있는 있다 했다 하였다 하는 에서 으로 이번 오늘 다음 우리 정리 학습 공부 활동 내용 부분 관련 함께 진행 대해서 것을 것이 수를 수업".split(" "));
 
-const cloud = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase);
-const sb = cloud ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) : null;
+let cloud = false, sb = null;
+/* config.js 를 글자로 읽어 url·key 를 뽑습니다. 따옴표가 빠지는 등 입력 실수가 있어도 동작합니다. */
+async function loadConfig(){
+  let url = CONFIG.SUPABASE_URL, key = CONFIG.SUPABASE_ANON_KEY;
+  if(!(url && key) && location.protocol.startsWith("http")){
+    try{
+      const r = await fetch("config.js", {cache:"no-cache"});
+      if(r.ok){
+        const t = await r.text();
+        const mu = t.match(/url\s*:\s*["'`]?\s*(https:\/\/[A-Za-z0-9.\-]+\.supabase\.co)/);
+        const mk = t.match(/key\s*:\s*["'`]?\s*([A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+|sb_publishable_[A-Za-z0-9_\-]+)/);
+        if(mu && mk){ url = mu[1]; key = mk[1]; }
+      }
+    }catch(e){}
+  }
+  if(url && key && window.supabase){ cloud = true; sb = window.supabase.createClient(url, key); }
+}
 
 const ERR = {
   BAD_PIN:"PIN이 맞지 않습니다. 다시 입력해 주세요.", LOCKED:"PIN을 5번 틀려 10분간 잠겼습니다. 잠시 뒤 다시 시도해 주세요.",
@@ -962,6 +976,7 @@ function seedDemo(){
 
 /* ───────── 시작 ───────── */
 (async function start(){
+  await loadConfig();
   const a = store.sget("mm-auth");
   if(a && a.role){ Object.assign(S,a); await refresh(true); if(!S.data){ logout(); } else connectLive(); }
   else render();
