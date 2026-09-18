@@ -249,7 +249,7 @@ async function loadConfig(){
 const ERR = {
   BAD_PIN:"PIN이 맞지 않습니다. 다시 입력해 주세요.", LOCKED:"PIN을 5번 틀려 10분간 잠겼습니다. 잠시 뒤 다시 시도해 주세요.",
   NO_TEAM:"팀 코드를 찾을 수 없습니다. 교수자에게 받은 코드를 확인해 주세요.", NOT_INITIALIZED:"교수자 PIN이 아직 설정되지 않았습니다.",
-  PHOTO_REQUIRED:"활동 인증 사진(얼굴)과 학습 결과물 사진을 각각 1장 이상 올려야 저장됩니다.", PIN_TOO_SHORT:"PIN이 너무 짧습니다. (교수자 6자리 이상, 팀 4자리 이상)",
+  PHOTO_REQUIRED:"활동 인증 사진(얼굴)과 학습 결과물 사진을 각각 1장 이상 올려야 저장됩니다.", PIN_TOO_SHORT:"PIN이 너무 짧습니다. (교수자 5자리 이상, 팀 4자리 이상)",
   ALREADY_INITIALIZED:"교수자 PIN이 이미 설정되어 있습니다.", CONFIRM_MISMATCH:"확인 문구가 일치하지 않습니다.",
   NAME_REQUIRED:"팀 이름을 입력해 주세요.", NO_SESSION:"해당 활동기록을 찾을 수 없습니다."
 };
@@ -813,7 +813,7 @@ document.addEventListener("keydown", e=>{ const d=e.target.closest?.(".drop"); i
 document.addEventListener("click", e=>{ const d=e.target.closest?.(".drop"); if(d && e.target.tagName!=="INPUT") $("#w-photo-"+d.dataset.kind).click(); });
 document.addEventListener("focusin", async e=>{
   if(e.target.id==="lg-apin" && !S._statusChecked){ S._statusChecked=true;
-    try{ const ok = await rpc("mm_admin_status"); if(!ok){ $("#lg-apin2-wrap").hidden=false; $("#adm-hint").textContent="처음 사용합니다. 교수자 PIN(6자리 이상)을 정해 두 번 입력하세요."; $("#adm-btn").textContent="PIN 설정하고 입장"; S._needInit=true; } }catch(_){}
+    try{ const ok = await rpc("mm_admin_status"); if(!ok){ $("#lg-apin2-wrap").hidden=false; $("#adm-hint").textContent="처음 사용합니다. 교수자 PIN(5자리 이상)을 정해 두 번 입력하세요."; $("#adm-btn").textContent="PIN 설정하고 입장"; S._needInit=true; } }catch(_){}
   }
 });
 

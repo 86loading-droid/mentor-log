@@ -142,7 +142,7 @@ create or replace function public.mm_admin_init(p_pin text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 begin
   if exists(select 1 from mm_settings) then return '{"error":"ALREADY_INITIALIZED"}'; end if;
-  if length(coalesce(p_pin,'')) < 6 then return '{"error":"PIN_TOO_SHORT"}'; end if;
+  if length(coalesce(p_pin,'')) < 5 then return '{"error":"PIN_TOO_SHORT"}'; end if;
   insert into mm_settings(id, admin_pin_hash) values (1, crypt(p_pin, gen_salt('bf')));
   return '{"data":true}';
 end $$;

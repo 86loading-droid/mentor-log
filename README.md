@@ -15,7 +15,7 @@
 2. SQL Editor 에 `supabase.sql` 전체를 붙여넣고 Run 합니다.
 3. 저장소에 `config.js` 를 만들고 `window.MM_CONFIG = { url: "https://<프로젝트>.supabase.co", key: "<anon public key>" };` 를 넣습니다 (Project Settings > API Keys > Legacy 의 anon public). 이 키는 브라우저 공개용이며, 데이터 보호는 RLS와 PIN 함수가 담당합니다.
 4. GitHub 저장소에 올리고 Settings > Pages 에서 `main` / `(root)` 로 배포합니다.
-5. 앱에서 교수자 입장 → 교수자 PIN(6자리 이상)을 처음 한 번 정합니다. 배포 직후 바로 설정하십시오.
+5. 앱에서 교수자 입장 → 교수자 PIN(5자리 이상)을 처음 한 번 정합니다. 배포 직후 바로 설정하십시오.
 6. 팀 관리에서 팀을 만들고, 화면에 뜨는 팀 코드와 PIN 을 학생에게 전달합니다.
 
 config.js 가 없으면 시연 모드로 동작합니다 (교수자 PIN 000000, 팀 코드 TDEMOA / PIN 1111).
