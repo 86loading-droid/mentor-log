@@ -1,0 +1,53 @@
+name: 자동 점검 (앱·데이터베이스)
+
+on:
+  schedule:
+    - cron: '0 0 * * 1,4'   # 매주 월요일·목요일 09:00 (한국 시간)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 연결값 읽기
+        id: cfg
+        run: |
+          URL=$(grep -oE 'https://[a-z0-9]+\.supabase\.co' config.js | head -1)
+          KEY=$(grep -oE '[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}' config.js | head -1)
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then echo "config.js 에서 연결값을 찾지 못했습니다."; exit 1; fi
+          echo "::add-mask::$KEY"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+
+      - name: 앱 주소 응답 확인
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://86loading-droid.github.io/mentor-log/)
+          echo "앱 페이지 HTTP $code"
+          [ "$code" = "200" ] || exit 1
+
+      - name: 데이터베이스 깨우기와 응답 확인
+        run: |
+          code=$(curl -s -o /tmp/out.json -w '%{http_code}' -X POST "${{ steps.cfg.outputs.url }}/rest/v1/rpc/mm_admin_status" \
+            -H "apikey: ${{ steps.cfg.outputs.key }}" \
+            -H "Authorization: Bearer ${{ steps.cfg.outputs.key }}" \
+            -H "Content-Type: application/json" -d '{}')
+          echo "데이터베이스 HTTP $code"
+          cat /tmp/out.json; echo
+          [ "$code" = "200" ] || exit 1
+          grep -q '"data"' /tmp/out.json || { echo "응답 형식이 예상과 다릅니다."; exit 1; }
+
+      - name: 점검 기록 남기기
+        run: |
+          mkdir -p .github
+          date -u '+%Y-%m-%d %H:%MZ  자동 점검 정상' >> .github/last-check.txt
+          tail -n 60 .github/last-check.txt > /tmp/t && mv /tmp/t .github/last-check.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/last-check.txt
+          git commit -m '자동 점검 기록' || exit 0
+          git push
