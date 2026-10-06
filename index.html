@@ -306,7 +306,12 @@ async function rpc(fn, args={}){
   let res;
   if(cloud){
     const {data,error} = await sb.rpc(fn,args);
-    if(error) throw new Error("서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요. ("+error.message+")");
+    if(error){
+      const net = /Failed to fetch|NetworkError|Load failed|fetch failed/i.test(error.message||"");
+      if(net) serverDown(true);
+      throw new Error(net ? "지금 서버에 연결할 수 없습니다. 서버 점검 중일 수 있으니 교수자에게 알려 주세요. 사진과 기록 내용은 휴대폰에 보관해 두었다가 복구 후 입력하시면 됩니다."
+                          : "요청을 처리하지 못했습니다. 잠시 뒤 다시 시도해 주세요. ("+error.message+")");
+    }
     res = data;
   } else res = Demo[fn](args);
   if(res && res.error) throw new Error(ERR[res.error] || res.error);
@@ -319,6 +324,17 @@ async function uploadPhoto(teamId, blob, kind="output"){
   const {error} = await sb.storage.from("mm-photos").upload(path, blob, {contentType:"image/jpeg", upsert:false});
   if(error) throw new Error("사진을 올리지 못했습니다: "+error.message);
   return sb.storage.from("mm-photos").getPublicUrl(path).data.publicUrl;
+}
+
+function serverDown(on){
+  const b = document.getElementById("banner");
+  if(!b) return;
+  if(on){
+    b.hidden = false;
+    b.style.background = "var(--crit-soft)";
+    b.style.color = "var(--crit)";
+    b.textContent = "서버 점검 중입니다. 지금은 입장과 기록 저장이 되지 않습니다. 사진과 메모를 휴대폰에 보관해 두었다가 복구 후 입력해 주세요.";
+  } else if(cloud){ b.hidden = true; }
 }
 
 /* ───────── 실시간 알림 (브로드캐스트) ───────── */
@@ -977,6 +993,7 @@ function seedDemo(){
 /* ───────── 시작 ───────── */
 (async function start(){
   await loadConfig();
+  if(cloud){ rpc("mm_admin_status").then(()=>serverDown(false)).catch(()=>{}); }
   const a = store.sget("mm-auth");
   if(a && a.role){ Object.assign(S,a); await refresh(true); if(!S.data){ logout(); } else connectLive(); }
   else render();
