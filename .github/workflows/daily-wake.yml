@@ -1,0 +1,22 @@
+name: 매일 깨우기 (데이터베이스)
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 매일 09:00 (한국 시간)
+  workflow_dispatch:
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 데이터베이스에 요청 보내기
+        run: |
+          URL=$(grep -oE 'https://[a-z0-9]+\.supabase\.co' config.js | head -1)
+          KEY=$(grep -oE '[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}' config.js | head -1)
+          echo "::add-mask::$KEY"
+          code=$(curl -s -o /tmp/out.json -w '%{http_code}' -X POST "$URL/rest/v1/rpc/mm_admin_status" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
+          echo "데이터베이스 HTTP $code"
+          cat /tmp/out.json; echo
+          [ "$code" = "200" ] || exit 1
