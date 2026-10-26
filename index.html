@@ -412,7 +412,7 @@ function legend(series){ return `<div class="legend">${series.map(s=>`<span><i s
 /* ───────── 상태와 화면 ───────── */
 const S = { role:null, pin:null, code:null, data:null, tab:"home", filterTeam:"all", draft:{face:[],output:[]}, busy:false, pendingRender:false };
 
-function saveAuth(){ store.sset("mm-auth", S.role? {role:S.role,pin:S.pin,code:S.code}:null); }
+function saveAuth(){ store.sset("mm-auth", S.role? {role:S.role,pin:S.pin,code:S.code,tab:S.tab}:null); }
 function lastSeenKey(){ return "mm-seen-"+(S.role==="admin"?"admin":S.code); }
 function unreadCount(){
   if(!S.data) return 0; if(S.preview) return 0; const seen = store.get(lastSeenKey(), "");
@@ -484,8 +484,13 @@ function isComposing(){
 function saveDraft(){
   if(!(S.role==="team" && S.tab==="write")) return;
   const v = writeFormValues();
-  if(Object.keys(v).length) store.set(draftKey(), {saved_at:new Date().toISOString(), v});
+  if(Object.keys(v).length){ store.set(draftKey(), {saved_at:new Date().toISOString(), v}); markDraftSaved(); }
   else store.set(draftKey(), null);
+}
+function markDraftSaved(){
+  const el = $("#draft-mark"); if(!el) return;
+  const d = new Date();
+  el.textContent = `임시 보관됨 ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 function clearDraft(){ store.set(draftKey(), null); }
 function restoreDraft(){
@@ -629,9 +634,9 @@ function teamWrite(){
     <div class="card grid" style="gap:12px"><h2 class="req">2. 활동 사진 (두 종류 모두 필수)</h2>
       <div class="grid g2">${Object.entries(PHOTO_KINDS).map(([k,v])=>`<div class="grid" style="gap:6px">
         <b class="req">${v.label}</b><span class="small muted">${v.need} · ${v.max}장까지</span>
-        <div class="drop" id="drop-${k}" data-kind="${k}" tabindex="0" role="button">사진 선택 또는 촬영<input id="w-photo-${k}" data-kind="${k}" type="file" accept="image/*" ${k==="face"?'capture="user"':''} multiple hidden></div>
+        <div class="drop" id="drop-${k}" data-kind="${k}" tabindex="0" role="button">앨범에서 고르기 · 촬영<input id="w-photo-${k}" data-kind="${k}" type="file" accept="image/*" multiple hidden></div>
         <div class="thumbs" id="thumbs-${k}">${thumbsHTML(k)}</div></div>`).join("")}</div>
-      <p class="small muted" style="margin:0">고른 사진과 입력한 글은 자동으로 임시 보관되어, 창을 닫았다 열어도 남아 있습니다.</p>
+      <p class="small muted" style="margin:0">고른 사진과 입력한 글은 자동으로 임시 보관되어, 창을 닫았다 열어도 남아 있습니다. <b id="draft-mark" style="color:var(--accent)"></b></p>
       <label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" id="w-consent" style="margin-top:4px"><span class="req">사진에 나온 멘토·멘티 모두 촬영과 학기말(${fmtDate(CONFIG.SEMESTER_END)})까지의 보관에 동의했습니다. 사진은 교수자와 우리 팀만 보는 용도이며, 학기 종료 후 삭제됩니다.</span></label>
     </div>
     <div class="card grid" style="gap:12px"><h2>3. 학습 내용</h2>
@@ -888,7 +893,7 @@ function adminExport(){
 /* ───────── 이벤트 ───────── */
 document.addEventListener("click", async e=>{
   const tab = e.target.closest("[data-tab]");
-  if(tab){ saveDraft(); S.tab=tab.dataset.tab; render(); window.scrollTo(0,0); return; }
+  if(tab){ saveDraft(); S.tab=tab.dataset.tab; saveAuth(); render(); window.scrollTo(0,0); return; }
   const pv = e.target.closest("[data-pvtab]");
   if(pv){ S.pvTab=pv.dataset.pvtab; render(); window.scrollTo(0,0); return; }
   const el = e.target.closest("[data-act]"); if(!el) return;
@@ -912,12 +917,23 @@ $("#viewer").addEventListener("click",()=>$("#viewer").close());
 let draftTimer=null;
 document.addEventListener("input", ()=>{ clearTimeout(draftTimer); draftTimer=setTimeout(saveDraft, 1000); });
 window.addEventListener("beforeunload", e=>{ if(isComposing()){ saveDraft(); e.preventDefault(); e.returnValue=""; } });
+window.addEventListener("pagehide", ()=>{ saveDraft(); saveDraftPhotos(); });
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ saveDraft(); saveDraftPhotos(); } });
 document.addEventListener("change", async e=>{
   if(e.target.id==="flt"){ S.filterTeam=e.target.value; render(); }
   if(e.target.id?.startsWith("w-photo-")){ await addPhotos(e.target.files, e.target.dataset.kind); e.target.value=""; }
 });
-document.addEventListener("keydown", e=>{ const d=e.target.closest?.(".drop"); if(d && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); $("#w-photo-"+d.dataset.kind).click(); } });
-document.addEventListener("click", e=>{ const d=e.target.closest?.(".drop"); if(d && e.target.tagName!=="INPUT") $("#w-photo-"+d.dataset.kind).click(); });
+function openPicker(kind){ saveDraft(); $("#w-photo-"+kind).click(); }
+/* 한 줄 입력칸에서 Enter(모바일 "이동"·"완료") 때문에 기록이 그냥 저장·이동되지 않게 막는다 */
+document.addEventListener("keydown", e=>{
+  if(e.key!=="Enter") return;
+  const t=e.target;
+  if(!t || t.tagName!=="INPUT" || t.type==="submit") return;
+  if(!t.closest('[data-form="session"]')) return;
+  e.preventDefault(); saveDraft(); t.blur();
+});
+document.addEventListener("keydown", e=>{ const d=e.target.closest?.(".drop"); if(d && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openPicker(d.dataset.kind); } });
+document.addEventListener("click", e=>{ const d=e.target.closest?.(".drop"); if(d && e.target.tagName!=="INPUT") openPicker(d.dataset.kind); });
 document.addEventListener("focusin", async e=>{
   if(e.target.id==="lg-apin" && !S._statusChecked){ S._statusChecked=true;
     try{ const ok = await rpc("mm_admin_status"); if(!ok){ $("#lg-apin2-wrap").hidden=false; $("#adm-hint").textContent="처음 사용합니다. 교수자 PIN(5자리 이상)을 정해 두 번 입력하세요."; $("#adm-btn").textContent="PIN 설정하고 입장"; S._needInit=true; } }catch(_){}
@@ -951,7 +967,11 @@ document.addEventListener("submit", async e=>{
     if(kind==="team-login"){
       const code=$("#lg-code").value.trim().toUpperCase(), pin=$("#lg-pin").value;
       S.data = await rpc("mm_team_login",{p_code:code,p_pin:pin});
-      Object.assign(S,{role:"team",code,pin,tab:"home",exSet:null}); S.practice=store.get(practiceKey(),{}); saveAuth(); connectLive(); render();
+      Object.assign(S,{role:"team",code,pin,tab:"home",exSet:null}); S.practice=store.get(practiceKey(),{});
+      /* 쓰다 만 기록이 남아 있으면 바로 기록하기 화면으로 */
+      const kept = store.get(draftKey(), null); const keptPhotos = await idbGet(draftKey());
+      if((kept && kept.v) || keptPhotos) S.tab="write";
+      saveAuth(); connectLive(); render();
     }
     if(kind==="admin-login"){
       const pin=$("#lg-apin").value;
@@ -976,7 +996,7 @@ document.addEventListener("submit", async e=>{
       const r = await rpc("mm_team_add_session",{p_code:S.code,p_pin:S.pin,p});
       ["face","output"].forEach(k=>S.draft[k].forEach(p=>URL.revokeObjectURL(p.url))); S.draft={face:[],output:[]};
       clearDraft(); idbDel(draftKey());
-      ping(r.team_id); S.tab="growth"; await refresh(); toast("기록을 저장했습니다. 성장 그래프에 반영되었습니다.");
+      ping(r.team_id); S.tab="growth"; saveAuth(); await refresh(); toast("기록을 저장했습니다. 성장 그래프에 반영되었습니다.");
     }
     if(kind==="comment"){
       const id=form.dataset.id, body=$("#c-"+id).value.trim(); if(!body) return;
@@ -1090,7 +1110,12 @@ function seedDemo(){
   const a = store.sget("mm-auth");
   if(a && a.role){ Object.assign(S,a); await refresh(true); if(!S.data){ logout(); } else connectLive(); }
   else render();
-  setInterval(()=>{ if(S.role && document.visibilityState==="visible") refresh(true); }, 60000);
+  setInterval(()=>{
+    if(!S.role || document.visibilityState!=="visible") return;
+    if(S.role==="team" && S.tab==="write") return;   /* 작성 화면에서는 갱신하지 않음 */
+    if(isComposing()) return;
+    refresh(true);
+  }, 60000);
 })();
 </script>
 </body>
