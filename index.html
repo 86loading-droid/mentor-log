@@ -423,6 +423,42 @@ function markSeen(){ store.set(lastSeenKey(), new Date().toISOString()); }
 
 const DRAFT_TEXT_IDS = ["w-date","w-min","w-mode","w-place","w-author","w-topic","w-unit","w-content","w-link","w-diff","w-next","nar-a1","nar-a2","nar-a3","nar-mentor","nar-next"];
 function draftKey(){ return "mm-draft-" + (S.code || "admin"); }
+/* 고른 사진은 용량이 커서 브라우저 저장소(IndexedDB)에 따로 보관합니다. */
+function idb(){
+  return new Promise((res, rej)=>{
+    const r = indexedDB.open("mm-draft-photos", 1);
+    r.onupgradeneeded = ()=>{ if(!r.result.objectStoreNames.contains("photos")) r.result.createObjectStore("photos"); };
+    r.onsuccess = ()=>res(r.result);
+    r.onerror = ()=>rej(r.error);
+  });
+}
+async function idbPut(key, value){
+  try{ const db = await idb(); await new Promise((res,rej)=>{ const tx=db.transaction("photos","readwrite"); tx.objectStore("photos").put(value, key); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); db.close(); return true; }catch(e){ return false; }
+}
+async function idbGet(key){
+  try{ const db = await idb(); const v = await new Promise((res,rej)=>{ const tx=db.transaction("photos","readonly"); const q=tx.objectStore("photos").get(key); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); db.close(); return v; }catch(e){ return null; }
+}
+async function idbDel(key){
+  try{ const db = await idb(); await new Promise((res,rej)=>{ const tx=db.transaction("photos","readwrite"); tx.objectStore("photos").delete(key); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); db.close(); }catch(e){}
+}
+async function saveDraftPhotos(){
+  if(S.role!=="team") return;
+  const face=(S.draft?.face||[]).map(p=>p.blob), output=(S.draft?.output||[]).map(p=>p.blob);
+  if(!face.length && !output.length){ await idbDel(draftKey()); return; }
+  const ok = await idbPut(draftKey(), {face, output, saved_at:new Date().toISOString()});
+  if(!ok) toast("사진 임시 보관에 실패했습니다. 저장 전까지 화면을 닫지 마세요.");
+}
+async function restoreDraftPhotos(){
+  if(!(S.role==="team" && S.tab==="write")) return;
+  if((S.draft?.face||[]).length || (S.draft?.output||[]).length) return;
+  const d = await idbGet(draftKey());
+  if(!d) return;
+  let n=0;
+  ["face","output"].forEach(k=>{
+    (d[k]||[]).forEach(blob=>{ if(blob){ S.draft[k].push({blob, url:URL.createObjectURL(blob)}); n++; } });
+  });
+  if(n){ ["face","output"].forEach(updateThumbs); toast(`임시 보관해 둔 사진 ${n}장을 되살렸습니다.`); }
+}
 function writeFormValues(){
   const v = {};
   DRAFT_TEXT_IDS.forEach(id=>{ const el=$("#"+id); if(el && String(el.value||"").trim()) v[id]=el.value; });
@@ -466,7 +502,7 @@ function restoreDraft(){
     }
     const el = $("#"+k); if(el){ el.value = val; n++; }
   });
-  if(n) toast("작성 중이던 내용을 되살렸습니다. 사진은 다시 올려 주세요.");
+  if(n) toast("작성 중이던 내용을 되살렸습니다.");
 }
 
 async function refresh(silent){
@@ -488,6 +524,7 @@ function render(){
   app.innerHTML = S.role==="admin" ? viewAdmin() : viewTeam();
   S.pendingRender = false;
   restoreDraft();
+  restoreDraftPhotos();
 }
 
 function header(title, sub, tabs){
@@ -594,6 +631,7 @@ function teamWrite(){
         <b class="req">${v.label}</b><span class="small muted">${v.need} · ${v.max}장까지</span>
         <div class="drop" id="drop-${k}" data-kind="${k}" tabindex="0" role="button">사진 선택 또는 촬영<input id="w-photo-${k}" data-kind="${k}" type="file" accept="image/*" ${k==="face"?'capture="user"':''} multiple hidden></div>
         <div class="thumbs" id="thumbs-${k}">${thumbsHTML(k)}</div></div>`).join("")}</div>
+      <p class="small muted" style="margin:0">고른 사진과 입력한 글은 자동으로 임시 보관되어, 창을 닫았다 열어도 남아 있습니다.</p>
       <label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" id="w-consent" style="margin-top:4px"><span class="req">사진에 나온 멘토·멘티 모두 촬영과 학기말(${fmtDate(CONFIG.SEMESTER_END)})까지의 보관에 동의했습니다. 사진은 교수자와 우리 팀만 보는 용도이며, 학기 종료 후 삭제됩니다.</span></label>
     </div>
     <div class="card grid" style="gap:12px"><h2>3. 학습 내용</h2>
@@ -850,11 +888,7 @@ function adminExport(){
 /* ───────── 이벤트 ───────── */
 document.addEventListener("click", async e=>{
   const tab = e.target.closest("[data-tab]");
-  if(tab){
-    if(S.role==="team" && S.tab==="write" && ((S.draft?.face||[]).length || (S.draft?.output||[]).length)
-       && !confirm("고른 사진은 지워집니다. 글 내용은 임시 저장됩니다. 이동할까요?")) return;
-    saveDraft(); S.tab=tab.dataset.tab; render(); window.scrollTo(0,0); return;
-  }
+  if(tab){ saveDraft(); S.tab=tab.dataset.tab; render(); window.scrollTo(0,0); return; }
   const pv = e.target.closest("[data-pvtab]");
   if(pv){ S.pvTab=pv.dataset.pvtab; render(); window.scrollTo(0,0); return; }
   const el = e.target.closest("[data-act]"); if(!el) return;
@@ -867,7 +901,7 @@ document.addEventListener("click", async e=>{
     if(act==="pv-exit"){ S.viewAs=null; render(); window.scrollTo(0,0); return; }
     if(act==="exset"){ S.exSet=el.dataset.k; render(); return; }
     if(act==="practice"){ S.practice={...(S.practice||{}),[el.dataset.i]:+el.dataset.v}; store.set(practiceKey(),S.practice); const y=window.scrollY; render(); window.scrollTo(0,y); return; }
-    if(act==="rm-photo"){ const k=el.dataset.kind; URL.revokeObjectURL(S.draft[k][+el.dataset.i].url); S.draft[k].splice(+el.dataset.i,1); updateThumbs(k); return; }
+    if(act==="rm-photo"){ const k=el.dataset.kind; URL.revokeObjectURL(S.draft[k][+el.dataset.i].url); S.draft[k].splice(+el.dataset.i,1); updateThumbs(k); saveDraftPhotos(); return; }
     if(act==="del-session" && confirm("이 활동기록과 댓글을 삭제할까요?")){ await rpc("mm_admin_delete_session",{p_pin:S.pin,p_id:el.dataset.id}); await refresh(); toast("삭제했습니다."); }
     if(act==="del-team" && confirm("팀과 그 팀의 모든 기록을 삭제할까요? 되돌릴 수 없습니다.")){ await rpc("mm_admin_delete_team",{p_pin:S.pin,p_id:el.dataset.id}); await refresh(); toast("팀을 삭제했습니다."); }
     if(act==="del-notice"){ await rpc("mm_admin_delete_notice",{p_pin:S.pin,p_id:el.dataset.id}); await refresh(); }
@@ -899,6 +933,7 @@ async function addPhotos(files, k){
     S.draft[k].push({blob, url:URL.createObjectURL(blob)});
   }
   updateThumbs(k);
+  saveDraftPhotos();
 }
 function updateThumbs(k){
   const el=$("#thumbs-"+k); if(!el) return;
@@ -940,7 +975,7 @@ document.addEventListener("submit", async e=>{
         difficulty:$("#w-diff").value.trim(), next_plan:$("#w-next").value.trim(), photos:urls, self_rating, mentor_rating, gas, narrative, author:$("#w-author").value };
       const r = await rpc("mm_team_add_session",{p_code:S.code,p_pin:S.pin,p});
       ["face","output"].forEach(k=>S.draft[k].forEach(p=>URL.revokeObjectURL(p.url))); S.draft={face:[],output:[]};
-      clearDraft();
+      clearDraft(); idbDel(draftKey());
       ping(r.team_id); S.tab="growth"; await refresh(); toast("기록을 저장했습니다. 성장 그래프에 반영되었습니다.");
     }
     if(kind==="comment"){
