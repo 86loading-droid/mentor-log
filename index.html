@@ -410,7 +410,7 @@ function lineChart(series, {h=220, yMin=1, yMax=4, labels=[], yTicks=[1,2,3,4], 
 function legend(series){ return `<div class="legend">${series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>`; }
 
 /* ───────── 상태와 화면 ───────── */
-const S = { role:null, pin:null, code:null, data:null, tab:"home", filterTeam:"all", draft:{face:[],output:[]}, busy:false };
+const S = { role:null, pin:null, code:null, data:null, tab:"home", filterTeam:"all", draft:{face:[],output:[]}, busy:false, pendingRender:false };
 
 function saveAuth(){ store.sset("mm-auth", S.role? {role:S.role,pin:S.pin,code:S.code}:null); }
 function lastSeenKey(){ return "mm-seen-"+(S.role==="admin"?"admin":S.code); }
@@ -421,10 +421,59 @@ function unreadCount(){
 }
 function markSeen(){ store.set(lastSeenKey(), new Date().toISOString()); }
 
+const DRAFT_TEXT_IDS = ["w-date","w-min","w-mode","w-place","w-author","w-topic","w-unit","w-content","w-link","w-diff","w-next","nar-a1","nar-a2","nar-a3","nar-mentor","nar-next"];
+function draftKey(){ return "mm-draft-" + (S.code || "admin"); }
+function writeFormValues(){
+  const v = {};
+  DRAFT_TEXT_IDS.forEach(id=>{ const el=$("#"+id); if(el && String(el.value||"").trim()) v[id]=el.value; });
+  document.querySelectorAll('#app input[type=radio]:checked').forEach(r=>{ v["radio:"+r.name]=r.value; });
+  const chk=$("#w-consent"); if(chk && chk.checked) v["w-consent"]=true;
+  return v;
+}
+function hasWriteInput(){
+  const v = writeFormValues();
+  return Object.keys(v).some(k=>!["w-date","w-min","w-mode","w-author"].includes(k));
+}
+/* 작성 중이면 화면을 다시 그리지 않는다 (입력 내용이 지워지는 것을 막음) */
+function isComposing(){
+  const ae = document.activeElement;
+  if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.id !== "flt") return true;
+  if(S.role==="team" && S.tab==="write"){
+    if((S.draft?.face||[]).length || (S.draft?.output||[]).length) return true;
+    if(hasWriteInput()) return true;
+  }
+  if([...document.querySelectorAll(".reply textarea")].some(t=>String(t.value||"").trim())) return true;
+  return false;
+}
+function saveDraft(){
+  if(!(S.role==="team" && S.tab==="write")) return;
+  const v = writeFormValues();
+  if(Object.keys(v).length) store.set(draftKey(), {saved_at:new Date().toISOString(), v});
+  else store.set(draftKey(), null);
+}
+function clearDraft(){ store.set(draftKey(), null); }
+function restoreDraft(){
+  if(!(S.role==="team" && S.tab==="write")) return;
+  const d = store.get(draftKey(), null);
+  if(!d || !d.v) return;
+  let n = 0;
+  Object.entries(d.v).forEach(([k,val])=>{
+    if(k === "w-consent"){ const c=$("#w-consent"); if(c){ c.checked = true; } return; }
+    if(k.startsWith("radio:")){
+      const r = document.querySelector(`input[name="${k.slice(6)}"][value="${val}"]`);
+      if(r){ r.checked = true; n++; }
+      return;
+    }
+    const el = $("#"+k); if(el){ el.value = val; n++; }
+  });
+  if(n) toast("작성 중이던 내용을 되살렸습니다. 사진은 다시 올려 주세요.");
+}
+
 async function refresh(silent){
   try{
     if(S.role==="team"){ S.data = await rpc("mm_team_login",{p_code:S.code,p_pin:S.pin}); if(!S.practice) S.practice = store.get(practiceKey(), {}); }
     else if(S.role==="admin") S.data = await rpc("mm_admin_all",{p_pin:S.pin});
+    if(silent && isComposing()){ S.pendingRender = true; return; }
     render();
   }catch(e){ if(!silent) toast(e.message); if(/PIN|잠겼/.test(e.message)) logout(); }
 }
@@ -437,7 +486,8 @@ function render(){
   banner.textContent = "시연 모드입니다. 기록은 이 브라우저에만 저장됩니다. 시연용 교수자 PIN 000000, 팀 코드 TDEMOA · PIN 1111";
   if(!S.role){ app.innerHTML = viewLogin(); return; }
   app.innerHTML = S.role==="admin" ? viewAdmin() : viewTeam();
-  if(S.tab==="feedback"||S.tab==="records") { /* 소통 탭을 열면 읽음 처리 */ }
+  S.pendingRender = false;
+  restoreDraft();
 }
 
 function header(title, sub, tabs){
@@ -800,7 +850,11 @@ function adminExport(){
 /* ───────── 이벤트 ───────── */
 document.addEventListener("click", async e=>{
   const tab = e.target.closest("[data-tab]");
-  if(tab){ S.tab=tab.dataset.tab; render(); window.scrollTo(0,0); return; }
+  if(tab){
+    if(S.role==="team" && S.tab==="write" && ((S.draft?.face||[]).length || (S.draft?.output||[]).length)
+       && !confirm("고른 사진은 지워집니다. 글 내용은 임시 저장됩니다. 이동할까요?")) return;
+    saveDraft(); S.tab=tab.dataset.tab; render(); window.scrollTo(0,0); return;
+  }
   const pv = e.target.closest("[data-pvtab]");
   if(pv){ S.pvTab=pv.dataset.pvtab; render(); window.scrollTo(0,0); return; }
   const el = e.target.closest("[data-act]"); if(!el) return;
@@ -821,6 +875,9 @@ document.addEventListener("click", async e=>{
   }catch(err){ toast(err.message); }
 });
 $("#viewer").addEventListener("click",()=>$("#viewer").close());
+let draftTimer=null;
+document.addEventListener("input", ()=>{ clearTimeout(draftTimer); draftTimer=setTimeout(saveDraft, 1000); });
+window.addEventListener("beforeunload", e=>{ if(isComposing()){ saveDraft(); e.preventDefault(); e.returnValue=""; } });
 document.addEventListener("change", async e=>{
   if(e.target.id==="flt"){ S.filterTeam=e.target.value; render(); }
   if(e.target.id?.startsWith("w-photo-")){ await addPhotos(e.target.files, e.target.dataset.kind); e.target.value=""; }
@@ -883,6 +940,7 @@ document.addEventListener("submit", async e=>{
         difficulty:$("#w-diff").value.trim(), next_plan:$("#w-next").value.trim(), photos:urls, self_rating, mentor_rating, gas, narrative, author:$("#w-author").value };
       const r = await rpc("mm_team_add_session",{p_code:S.code,p_pin:S.pin,p});
       ["face","output"].forEach(k=>S.draft[k].forEach(p=>URL.revokeObjectURL(p.url))); S.draft={face:[],output:[]};
+      clearDraft();
       ping(r.team_id); S.tab="growth"; await refresh(); toast("기록을 저장했습니다. 성장 그래프에 반영되었습니다.");
     }
     if(kind==="comment"){
