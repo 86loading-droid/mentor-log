@@ -48,6 +48,9 @@ create table if not exists public.mm_sessions (
 
 alter table public.mm_sessions add column if not exists unit text default '';
 alter table public.mm_sessions add column if not exists narrative jsonb default '{}'::jsonb;
+alter table public.mm_sessions add column if not exists updated_at timestamptz;
+alter table public.mm_sessions add column if not exists edit_count int not null default 0;
+alter table public.mm_sessions add column if not exists delete_request jsonb;
 
 create table if not exists public.mm_comments (
   id uuid primary key default gen_random_uuid(),
@@ -275,6 +278,80 @@ begin
   return jsonb_build_object('data', jsonb_build_object('id', v_id, 'team_id', v_team));
 end $$;
 
+-- 팀이 자기 팀 기록을 고칩니다. 사진 2종 필수 조건은 그대로이며, 고친 시각과 횟수가 남습니다.
+create or replace function public.mm_team_update_session(p_code text, p_pin text, p_id uuid, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare a text := _mm_team(p_code, p_pin); v_team uuid;
+begin
+  if a not like 'OK:%' then return jsonb_build_object('error', a); end if;
+  v_team := substr(a, 4)::uuid;
+  if not exists (select 1 from mm_sessions where id = p_id and team_id = v_team) then return '{"error":"NO_SESSION"}'; end if;
+  if not exists (select 1 from jsonb_array_elements(coalesce(p->'photos','[]'::jsonb)) e where e->>'kind' = 'face')
+     or not exists (select 1 from jsonb_array_elements(coalesce(p->'photos','[]'::jsonb)) e where e->>'kind' = 'output') then
+    return '{"error":"PHOTO_REQUIRED"}';
+  end if;
+  update mm_sessions set
+    session_date = (p->>'session_date')::date,
+    minutes      = coalesce((p->>'minutes')::int, 0),
+    mode         = coalesce(p->>'mode','대면'),
+    place        = coalesce(p->>'place',''),
+    topic        = coalesce(p->>'topic',''),
+    content      = coalesce(p->>'content',''),
+    output_link  = coalesce(p->>'output_link',''),
+    difficulty   = coalesce(p->>'difficulty',''),
+    next_plan    = coalesce(p->>'next_plan',''),
+    photos       = p->'photos',
+    self_rating  = coalesce(p->'self_rating','{}'::jsonb),
+    mentor_rating= coalesce(p->'mentor_rating','{}'::jsonb),
+    gas          = coalesce(p->'gas','{}'::jsonb),
+    unit         = coalesce(p->>'unit',''),
+    narrative    = coalesce(p->'narrative','{}'::jsonb),
+    author       = coalesce(p->>'author',''),
+    updated_at   = now(),
+    edit_count   = coalesce(edit_count,0) + 1
+  where id = p_id and team_id = v_team;
+  return jsonb_build_object('data', jsonb_build_object('id', p_id, 'team_id', v_team));
+end $$;
+
+-- 팀이 기록 삭제를 교수자에게 요청합니다(학생은 직접 지우지 못합니다).
+create or replace function public.mm_team_request_delete(p_code text, p_pin text, p_id uuid, p_by text, p_reason text)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare a text := _mm_team(p_code, p_pin); v_team uuid;
+begin
+  if a not like 'OK:%' then return jsonb_build_object('error', a); end if;
+  v_team := substr(a, 4)::uuid;
+  if not exists (select 1 from mm_sessions where id = p_id and team_id = v_team) then return '{"error":"NO_SESSION"}'; end if;
+  if coalesce(trim(p_reason),'') = '' then return '{"error":"REASON_REQUIRED"}'; end if;
+  update mm_sessions
+     set delete_request = jsonb_build_object('by', coalesce(p_by,''), 'reason', trim(p_reason), 'at', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+   where id = p_id and team_id = v_team;
+  return jsonb_build_object('data', v_team);
+end $$;
+
+-- 팀이 보낸 삭제 요청을 스스로 거둬들입니다.
+create or replace function public.mm_team_cancel_delete(p_code text, p_pin text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare a text := _mm_team(p_code, p_pin); v_team uuid;
+begin
+  if a not like 'OK:%' then return jsonb_build_object('error', a); end if;
+  v_team := substr(a, 4)::uuid;
+  if not exists (select 1 from mm_sessions where id = p_id and team_id = v_team) then return '{"error":"NO_SESSION"}'; end if;
+  update mm_sessions set delete_request = null where id = p_id and team_id = v_team;
+  return jsonb_build_object('data', v_team);
+end $$;
+
+-- 교수자가 삭제 요청을 처리합니다. p_approve 가 참이면 기록을 지우고, 거짓이면 요청만 지웁니다.
+create or replace function public.mm_admin_resolve_delete(p_pin text, p_id uuid, p_approve boolean)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare a text := _mm_admin(p_pin);
+begin
+  if a <> 'OK' then return jsonb_build_object('error', a); end if;
+  if not exists (select 1 from mm_sessions where id = p_id) then return '{"error":"NO_SESSION"}'; end if;
+  if coalesce(p_approve,false) then delete from mm_sessions where id = p_id;
+  else update mm_sessions set delete_request = null where id = p_id; end if;
+  return '{"data":true}';
+end $$;
+
 create or replace function public.mm_team_comment(p_code text, p_pin text, p_session uuid, p_role text, p_author text, p_body text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare a text := _mm_team(p_code, p_pin); v_team uuid;
@@ -309,6 +386,10 @@ grant execute on function public.mm_admin_delete_notice(text, uuid) to anon, aut
 grant execute on function public.mm_admin_purge(text, text) to anon, authenticated;
 grant execute on function public.mm_team_login(text, text) to anon, authenticated;
 grant execute on function public.mm_team_add_session(text, text, jsonb) to anon, authenticated;
+grant execute on function public.mm_team_update_session(text, text, uuid, jsonb) to anon, authenticated;
+grant execute on function public.mm_team_request_delete(text, text, uuid, text, text) to anon, authenticated;
+grant execute on function public.mm_team_cancel_delete(text, text, uuid) to anon, authenticated;
+grant execute on function public.mm_admin_resolve_delete(text, uuid, boolean) to anon, authenticated;
 grant execute on function public.mm_team_comment(text, text, uuid, text, text, text) to anon, authenticated;
 
 -- ───── 활동 사진 저장소 ─────
