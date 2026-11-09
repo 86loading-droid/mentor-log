@@ -251,7 +251,8 @@ const ERR = {
   NO_TEAM:"팀 코드를 찾을 수 없습니다. 교수자에게 받은 코드를 확인해 주세요.", NOT_INITIALIZED:"교수자 PIN이 아직 설정되지 않았습니다.",
   PHOTO_REQUIRED:"활동 인증 사진(얼굴)과 학습 결과물 사진을 각각 1장 이상 올려야 저장됩니다.", PIN_TOO_SHORT:"PIN이 너무 짧습니다. (교수자 5자리 이상, 팀 4자리 이상)",
   ALREADY_INITIALIZED:"교수자 PIN이 이미 설정되어 있습니다.", CONFIRM_MISMATCH:"확인 문구가 일치하지 않습니다.",
-  NAME_REQUIRED:"팀 이름을 입력해 주세요.", NO_SESSION:"해당 활동기록을 찾을 수 없습니다."
+  NAME_REQUIRED:"팀 이름을 입력해 주세요.", NO_SESSION:"해당 활동기록을 찾을 수 없습니다.",
+  REASON_REQUIRED:"삭제를 요청하는 이유를 적어 주세요."
 };
 
 /* ───────── 저장소 계층 ───────── */
@@ -298,6 +299,23 @@ const Demo = {
     const s={...p,id:uid(),team_id:r.t.id,created_at:new Date().toISOString()}; const d=this.load(); d.sessions.push(s);
     if(!this.save()){ /* 브라우저 저장 한도 초과 시 메모리에만 유지 */ }
     return {data:{id:s.id,team_id:r.t.id}}; },
+  mm_team_update_session({p_code,p_pin,p_id,p}){ const r=this.team(p_code,p_pin); if(r.e) return {error:r.e};
+    const d=this.load(); const s=d.sessions.find(x=>x.id===p_id && x.team_id===r.t.id); if(!s) return {error:"NO_SESSION"};
+    if(!(p.photos||[]).some(x=>pKind(x)==="face") || !(p.photos||[]).some(x=>pKind(x)==="output")) return {error:"PHOTO_REQUIRED"};
+    Object.assign(s, p, {updated_at:new Date().toISOString(), edit_count:(s.edit_count||0)+1}); this.save();
+    return {data:{id:s.id,team_id:r.t.id}}; },
+  mm_team_request_delete({p_code,p_pin,p_id,p_by,p_reason}){ const r=this.team(p_code,p_pin); if(r.e) return {error:r.e};
+    const d=this.load(); const s=d.sessions.find(x=>x.id===p_id && x.team_id===r.t.id); if(!s) return {error:"NO_SESSION"};
+    if(!String(p_reason||"").trim()) return {error:"REASON_REQUIRED"};
+    s.delete_request={by:p_by||"", reason:String(p_reason).trim(), at:new Date().toISOString()}; this.save(); return {data:r.t.id}; },
+  mm_team_cancel_delete({p_code,p_pin,p_id}){ const r=this.team(p_code,p_pin); if(r.e) return {error:r.e};
+    const d=this.load(); const s=d.sessions.find(x=>x.id===p_id && x.team_id===r.t.id); if(!s) return {error:"NO_SESSION"};
+    s.delete_request=null; this.save(); return {data:r.t.id}; },
+  mm_admin_resolve_delete({p_pin,p_id,p_approve}){ const a=this.admin(p_pin); if(a!=="OK") return {error:a};
+    const d=this.load(); const s=d.sessions.find(x=>x.id===p_id); if(!s) return {error:"NO_SESSION"};
+    if(p_approve){ d.sessions=d.sessions.filter(x=>x.id!==p_id); d.comments=d.comments.filter(c=>c.session_id!==p_id); }
+    else s.delete_request=null;
+    this.save(); return {data:true}; },
   mm_team_comment({p_code,p_pin,p_session,p_role,p_author,p_body}){ const r=this.team(p_code,p_pin); if(r.e) return {error:r.e}; const d=this.load();
     d.comments.push({id:uid(),session_id:p_session,team_id:r.t.id,role:p_role,author:p_author,body:p_body,created_at:new Date().toISOString()}); this.save(); return {data:r.t.id}; }
 };
@@ -410,9 +428,9 @@ function lineChart(series, {h=220, yMin=1, yMax=4, labels=[], yTicks=[1,2,3,4], 
 function legend(series){ return `<div class="legend">${series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>`; }
 
 /* ───────── 상태와 화면 ───────── */
-const S = { role:null, pin:null, code:null, data:null, tab:"home", filterTeam:"all", draft:{face:[],output:[]}, busy:false, pendingRender:false };
+const S = { role:null, pin:null, code:null, data:null, tab:"home", filterTeam:"all", draft:{face:[],output:[]}, busy:false, pendingRender:false, editId:null, delReq:null };
 
-function saveAuth(){ store.sset("mm-auth", S.role? {role:S.role,pin:S.pin,code:S.code,tab:S.tab}:null); }
+function saveAuth(){ store.sset("mm-auth", S.role? {role:S.role,pin:S.pin,code:S.code,tab:S.tab,editId:S.editId}:null); }
 function lastSeenKey(){ return "mm-seen-"+(S.role==="admin"?"admin":S.code); }
 function unreadCount(){
   if(!S.data) return 0; if(S.preview) return 0; const seen = store.get(lastSeenKey(), "");
@@ -422,7 +440,8 @@ function unreadCount(){
 function markSeen(){ store.set(lastSeenKey(), new Date().toISOString()); }
 
 const DRAFT_TEXT_IDS = ["w-date","w-min","w-mode","w-place","w-author","w-topic","w-unit","w-content","w-link","w-diff","w-next","nar-a1","nar-a2","nar-a3","nar-mentor","nar-next"];
-function draftKey(){ return "mm-draft-" + (S.code || "admin"); }
+function draftKey(){ return "mm-draft-" + (S.code || "admin") + (S.editId ? "-e" + S.editId : ""); }
+function editingSession(){ return S.editId ? (S.data?.sessions||[]).find(x=>x.id===S.editId) : null; }
 /* 고른 사진은 용량이 커서 브라우저 저장소(IndexedDB)에 따로 보관합니다. */
 function idb(){
   return new Promise((res, rej)=>{
@@ -443,7 +462,8 @@ async function idbDel(key){
 }
 async function saveDraftPhotos(){
   if(S.role!=="team") return;
-  const face=(S.draft?.face||[]).map(p=>p.blob), output=(S.draft?.output||[]).map(p=>p.blob);
+  const keep = a => (a||[]).map(p => p.existing ? {u:p.url} : p.blob).filter(Boolean);
+  const face=keep(S.draft?.face), output=keep(S.draft?.output);
   if(!face.length && !output.length){ await idbDel(draftKey()); return; }
   const ok = await idbPut(draftKey(), {face, output, saved_at:new Date().toISOString()});
   if(!ok) toast("사진 임시 보관에 실패했습니다. 저장 전까지 화면을 닫지 마세요.");
@@ -452,10 +472,17 @@ async function restoreDraftPhotos(){
   if(!(S.role==="team" && S.tab==="write")) return;
   if((S.draft?.face||[]).length || (S.draft?.output||[]).length) return;
   const d = await idbGet(draftKey());
-  if(!d) return;
+  if(!d){
+    /* 기록을 고치는 중이면, 원래 올려 둔 사진을 그대로 불러온다 */
+    const ed = editingSession();
+    if(ed){ (ed.photos||[]).forEach(ph=>{ const k=pKind(ph); if(S.draft[k]) S.draft[k].push({existing:true, url:pUrl(ph)}); }); ["face","output"].forEach(updateThumbs); }
+    return;
+  }
   let n=0;
   ["face","output"].forEach(k=>{
-    (d[k]||[]).forEach(blob=>{ if(blob){ S.draft[k].push({blob, url:URL.createObjectURL(blob)}); n++; } });
+    (d[k]||[]).forEach(item=>{ if(!item) return;
+      if(item.u){ S.draft[k].push({existing:true, url:item.u}); } else { S.draft[k].push({blob:item, url:URL.createObjectURL(item)}); }
+      n++; });
   });
   if(n){ ["face","output"].forEach(updateThumbs); toast(`임시 보관해 둔 사진 ${n}장을 되살렸습니다.`); }
 }
@@ -478,7 +505,8 @@ function isComposing(){
     if((S.draft?.face||[]).length || (S.draft?.output||[]).length) return true;
     if(hasWriteInput()) return true;
   }
-  if([...document.querySelectorAll(".reply textarea")].some(t=>String(t.value||"").trim())) return true;
+  if([...document.querySelectorAll(".reply textarea, [data-form=\"delreq\"] textarea")].some(t=>String(t.value||"").trim())) return true;
+  if(S.delReq) return true;
   return false;
 }
 function saveDraft(){
@@ -510,6 +538,45 @@ function restoreDraft(){
   if(n) toast("작성 중이던 내용을 되살렸습니다.");
 }
 
+function setRadioValue(name, val){
+  if(val==null || val==="") return;
+  const r = document.querySelector(`input[name="${name}"][value="${val}"]`);
+  if(r) r.checked = true;
+}
+/* 고르기(수정) 눌렀을 때, 저장돼 있던 내용을 입력칸에 그대로 넣는다 */
+function fillEditForm(s){
+  const set=(id,v)=>{ const el=$("#"+id); if(el) el.value = (v==null?"":v); };
+  set("w-date", String(s.session_date||"").slice(0,10));
+  set("w-min", s.minutes||60); set("w-mode", s.mode||"대면"); set("w-place", s.place||"");
+  const au=$("#w-author"); if(au && [...au.options].some(o=>o.value===s.author)) au.value=s.author;
+  set("w-topic", s.topic); set("w-unit", s.unit); set("w-content", s.content);
+  set("w-link", s.output_link); set("w-diff", s.difficulty); set("w-next", s.next_plan);
+  RUBRIC.forEach(a=>{
+    setRadioValue("self-"+a.key, s.self_rating?.[a.key]);
+    setRadioValue("mentor-"+a.key, s.mentor_rating?.[a.key]);
+    set("nar-"+a.key, s.narrative?.[a.key]||"");
+  });
+  (S.data?.team?.goals||[]).forEach((g,i)=>setRadioValue("gas-"+i, s.gas?.[i]));
+  set("nar-mentor", s.narrative?.mentor_note||""); set("nar-next", s.narrative?.next_step||"");
+  const c=$("#w-consent"); if(c) c.checked = true;
+}
+function startEdit(s){
+  dropDraftPhotos();
+  S.editId = s.id; S.tab = "write"; saveAuth(); render(); window.scrollTo(0,0);
+  toast("이 기록을 고치는 중입니다. 다 고친 뒤 \u2018수정 저장\u2019을 누르세요.");
+}
+function dropDraftPhotos(){
+  ["face","output"].forEach(k=>(S.draft[k]||[]).forEach(p=>{ if(!p.existing) URL.revokeObjectURL(p.url); }));
+  S.draft = {face:[], output:[]};
+}
+function exitEdit(opt={}){
+  clearDraft(); idbDel(draftKey());
+  dropDraftPhotos(); S.editId = null;
+  if(opt.records) S.tab = "records";
+  saveAuth();
+  if(opt.rerender !== false){ render(); window.scrollTo(0,0); }
+}
+
 async function refresh(silent){
   try{
     if(S.role==="team"){ S.data = await rpc("mm_team_login",{p_code:S.code,p_pin:S.pin}); if(!S.practice) S.practice = store.get(practiceKey(), {}); }
@@ -518,7 +585,7 @@ async function refresh(silent){
     render();
   }catch(e){ if(!silent) toast(e.message); if(/PIN|잠겼/.test(e.message)) logout(); }
 }
-function logout(){ S.role=S.pin=S.code=S.data=S.practice=S.exSet=S.viewAs=null; S.tab="home"; saveAuth(); render(); }
+function logout(){ S.role=S.pin=S.code=S.data=S.practice=S.exSet=S.viewAs=null; S.editId=null; S.tab="home"; saveAuth(); render(); }
 
 function render(){
   const app=$("#app");
@@ -528,6 +595,7 @@ function render(){
   if(!S.role){ app.innerHTML = viewLogin(); return; }
   app.innerHTML = S.role==="admin" ? viewAdmin() : viewTeam();
   S.pendingRender = false;
+  if(S.role==="team" && S.tab==="write"){ const ed = editingSession(); if(ed) fillEditForm(ed); }
   restoreDraft();
   restoreDraftPhotos();
 }
@@ -597,7 +665,7 @@ function teamHome(){
           <div class="ladder">${[1,2,3,4].map(i=>`<span class="${v&&i<=v?"on":""}"></span>`).join("")}</div>
           ${v&&v<4?`<span class="small muted">다음 목표(${v+1}단계): ${esc(a.levels[v])}</span>`:v===4?`<span class="small muted">최고 단계입니다. 다른 사례로 전이해 보세요.</span>`:""}</div>`; }).join("")}
         ${Object.keys(S.practice||{}).length<3?`<div class="msg"><span class="who">처음이라면</span>기록 전에 루브릭 연습 3문항을 멘토와 함께 풀어 보세요. <button class="btn sm" data-tab="rubric">연습하러 가기</button></div>`:""}
-        <button class="btn primary" data-tab="write">오늘 활동 기록하기</button>
+        <button class="btn primary" data-tab="write" data-new="1">오늘 활동 기록하기</button>
       </div>
       <div class="grid" style="gap:16px;align-content:start">
         <div class="card grid" style="gap:8px"><h2>교수자 피드백</h2>
@@ -620,7 +688,11 @@ function scaleInput(name, values, labels, cur){
 }
 function teamWrite(){
   const {team} = S.data;
+  const ed = editingSession();
   return `<form class="section" data-form="session">
+    ${ed?`<div class="card row between" style="gap:10px;border-color:var(--accent);flex-wrap:wrap">
+      <div><b>${fmtDate(ed.session_date)} 기록을 고치는 중입니다.</b><div class="small muted">고친 내용은 아래 \u2018수정 저장\u2019을 눌러야 반영됩니다. 사진도 빼거나 더 올릴 수 있습니다.</div></div>
+      <button type="button" class="btn sm" data-act="cancel-edit">수정 취소</button></div>`:""}
     <div class="card grid" style="gap:14px"><h2>1. 활동 개요</h2>
       <div class="grid g4">
         <label class="f req">활동 날짜<input id="w-date" type="date" value="${today()}" max="${today()}" required></label>
@@ -659,7 +731,7 @@ function teamWrite(){
       ${(team.goals||[]).length? `<div class="grid" style="gap:8px;padding-top:8px;border-top:1px solid var(--line)"><b>학기 목표 달성 척도(GAS) <span class="small muted">0 = 기대 수준 달성</span></b>
         ${team.goals.map((g,i)=>`<div class="axis-row"><span class="small">${esc(g)}</span>${scaleInput("gas-"+i,[-2,-1,0,1,2],GAS.map(x=>x[1]))}</div>`).join("")}</div>`:""}
     </div>
-    <div class="row" style="justify-content:flex-end"><span class="small muted" id="w-status"></span><button class="btn primary" id="w-save" ${S.preview?"disabled":""}>기록 저장</button></div>
+    <div class="row" style="justify-content:flex-end"><span class="small muted" id="w-status"></span><button class="btn primary" id="w-save" ${S.preview?"disabled":""}>${ed?"수정 저장":"기록 저장"}</button></div>
   </form>`;
 }
 
@@ -677,7 +749,10 @@ function timeline(sessions, admin){
       <header><div><span class="eyebrow">${admin?esc(t.name)+" · ":""}${fmtDate(s.session_date)} · ${s.minutes}분 · ${esc(s.mode)}</span>${s.unit?`<div class="small muted">단원: ${esc(s.unit)}</div>`:""}<h3>${esc(s.topic)}</h3></div>
         <div class="row">${(ups[s.id]||[]).map(u=>`<span class="pill ok">▲ ${esc(u)}</span>`).join("")}
           ${hasFb?`<span class="pill ok">피드백 완료</span>`:`<span class="pill ${admin?"warn":""}">피드백 대기</span>`}
-          ${admin?`<button class="btn sm danger" data-act="del-session" data-id="${s.id}">삭제</button>`:""}</div></header>
+          ${s.delete_request?`<span class="pill warn">삭제 요청</span>`:""}
+          ${admin?`<button class="btn sm danger" data-act="del-session" data-id="${s.id}">삭제</button>`
+                 :(S.preview?"":`<button class="btn sm" data-act="edit-session" data-id="${s.id}">고치기</button>${s.delete_request?`<button class="btn sm" data-act="delreq-cancel" data-id="${s.id}">삭제 요청 취소</button>`:`<button class="btn sm" data-act="delreq-open" data-id="${s.id}">삭제 요청</button>`}`)}</div></header>
+      ${deleteRequestBox(s, admin)}
       ${photoGroups(s)}
       <dl class="kv"><dt>학습 내용</dt><dd>${esc(s.content)}</dd>
         ${s.difficulty?`<dt>어려웠던 점</dt><dd>${esc(s.difficulty)}</dd>`:""}
@@ -688,7 +763,7 @@ function timeline(sessions, admin){
         <dt>성장 점검</dt><dd><div class="grid" style="gap:6px">${RUBRIC.map(a=>`<div><span class="small"><b>${a.name}</b>: 나 ${lvChip(s.self_rating?.[a.key])} · 멘토 ${lvChip(s.mentor_rating?.[a.key])}</span>${s.narrative?.[a.key]?`<div class="small">근거: ${esc(s.narrative[a.key])}</div>`:""}</div>`).join("")}</div></dd>
         ${s.narrative?.mentor_note?`<dt>멘토 관찰</dt><dd>${esc(s.narrative.mentor_note)}</dd>`:""}
         ${s.narrative?.next_step?`<dt>다음 단계 준비</dt><dd>${esc(s.narrative.next_step)}</dd>`:""}
-        <dt>작성</dt><dd class="small muted">${esc(s.author)} · ${fmtTime(s.created_at)}</dd></dl>
+        <dt>작성</dt><dd class="small muted">${esc(s.author)} · ${fmtTime(s.created_at)}${s.updated_at?` · ${fmtTime(s.updated_at)} 고침${(+s.edit_count>1)?` (${s.edit_count}회)`:""}`:""}</dd></dl>
       <div class="thread">
         ${cs.map(c=>`<div class="msg ${c.role==="admin"?"admin":""}"><span class="who">${c.role==="admin"?"교수자":esc(c.author)+(c.role==="mentor"?" (멘토)":" (멘티)")} · ${fmtTime(c.created_at)}</span>${esc(c.body)}</div>`).join("")}
         <form class="reply" data-form="comment" data-id="${s.id}" ${S.preview?"inert":""}>
@@ -699,6 +774,35 @@ function timeline(sessions, admin){
       </div></article>`; }).join("")}</div>`;
 }
 
+function deleteRequestBox(s, admin){
+  const d = s.delete_request;
+  if(admin){
+    if(!d) return "";
+    return `<div class="card grid" style="gap:6px;border-color:var(--warn)">
+      <b>학생이 삭제를 요청했습니다.</b>
+      <span class="small muted">${esc(d.by||"")} · ${fmtTime(d.at)}</span>
+      <div style="white-space:pre-wrap">${esc(d.reason||"")}</div>
+      <div class="row" style="gap:8px;justify-content:flex-end">
+        <button class="btn sm" data-act="delreq-reject" data-id="${s.id}">요청 반려</button>
+        <button class="btn sm danger" data-act="delreq-approve" data-id="${s.id}">삭제 승인</button></div></div>`;
+  }
+  if(S.preview) return "";
+  if(d) return `<div class="card grid" style="gap:4px;border-color:var(--warn)">
+      <b>삭제 요청을 보냈습니다. 교수자가 확인할 때까지 기록은 그대로 남아 있습니다.</b>
+      <span class="small muted">${esc(d.by||"")} · ${fmtTime(d.at)} · 이유: ${esc(d.reason||"")}</span></div>`;
+  if(S.delReq !== s.id) return "";
+  const team = S.data.team;
+  return `<form class="card grid" data-form="delreq" data-id="${s.id}" style="gap:8px;border-color:var(--warn)">
+    <b>이 기록을 지워 달라고 교수자에게 요청합니다.</b>
+    <span class="small muted">학생은 기록을 직접 지울 수 없습니다. 교수자가 확인한 뒤 지웁니다.</span>
+    <select id="dr-who-${s.id}" style="width:auto">
+      <option value="${esc(team.mentor)} (멘토)">${esc(team.mentor)} (멘토)</option>
+      <option value="${esc(team.mentee)} (멘티)">${esc(team.mentee)} (멘티)</option></select>
+    <label class="f req">삭제를 요청하는 이유<textarea id="dr-${s.id}" required placeholder="예: 같은 회기를 두 번 올렸습니다."></textarea></label>
+    <div class="row" style="gap:8px;justify-content:flex-end">
+      <button type="button" class="btn sm" data-act="delreq-close">닫기</button>
+      <button class="btn sm danger">요청 보내기</button></div></form>`;
+}
 function photoGroups(s){
   return `<div class="grid g2" style="gap:10px">${Object.entries(PHOTO_KINDS).map(([k,v])=>{ const ps=(s.photos||[]).filter(p=>pKind(p)===k);
     return `<div class="grid" style="gap:4px"><span class="eyebrow">${v.label}</span>${ps.length?`<div class="photos">${ps.map((p,i)=>`<img src="${esc(pUrl(p))}" alt="${esc(s.topic)} ${v.label} ${i+1}" loading="lazy" data-act="zoom">`).join("")}</div>`:`<span class="small muted">없음</span>`}</div>`; }).join("")}</div>`;
@@ -829,6 +933,7 @@ function adminHome(){
       <div class="card stat"><div class="k">전체 회기</div><div class="v">${sessions.length}</div></div>
       <div class="card stat"><div class="k">누적 시간</div><div class="v">${(st.reduce((p,x)=>p+x.mins,0)/60).toFixed(1)}<span class="small muted">h</span></div></div>
       <div class="card stat"><div class="k">피드백 대기</div><div class="v" style="color:${pending?"var(--warn)":"inherit"}">${pending}</div><button class="btn sm" data-tab="feed">바로 가기</button></div>
+      <div class="card stat"><div class="k">삭제 요청</div><div class="v" style="color:${sessions.filter(x=>x.delete_request).length?"var(--crit)":"inherit"}">${sessions.filter(x=>x.delete_request).length}</div>${sessions.filter(x=>x.delete_request).length?`<button class="btn sm" data-act="delreq-list">바로 보기</button>`:`<span class="small muted">없음</span>`}</div>
       <div class="card stat"><div class="k">2주 이상 미활동 팀</div><div class="v" style="color:${idle.length?"var(--crit)":"inherit"}">${idle.length}</div><span class="small muted">${idle.map(x=>esc(x.t.name)).join(", ")||"없음"}</span></div>
     </div>
     <div class="card"><div class="scroll"><table class="t"><thead><tr><th>팀</th><th>주제</th><th>회기</th><th>시간</th><th>사진</th><th>마지막 활동</th><th>현재 단계 (영역별, 학생 화면과 동일)</th><th>자기-멘토 차이</th><th>피드백 대기</th><th>학생 답글</th></tr></thead><tbody>
@@ -847,9 +952,12 @@ function adminHome(){
 function adminFeed(){
   const {teams,sessions} = S.data;
   const f = S.filterTeam;
-  let list = f==="all"? sessions : f==="pending"? sessions.filter(s=>!S.data.comments.some(c=>c.session_id===s.id&&c.role==="admin")) : sessions.filter(s=>s.team_id===f);
+  let list = f==="all"? sessions
+           : f==="pending"? sessions.filter(s=>!S.data.comments.some(c=>c.session_id===s.id&&c.role==="admin"))
+           : f==="delreq"? sessions.filter(s=>s.delete_request)
+           : sessions.filter(s=>s.team_id===f);
   return `<div class="section"><div class="row"><label class="f" style="min-width:220px">보기<select id="flt">
-    <option value="all" ${f==="all"?"selected":""}>전체 팀</option><option value="pending" ${f==="pending"?"selected":""}>피드백 대기만</option>
+    <option value="all" ${f==="all"?"selected":""}>전체 팀</option><option value="pending" ${f==="pending"?"selected":""}>피드백 대기만</option><option value="delreq" ${f==="delreq"?"selected":""}>삭제 요청만</option>
     ${teams.map(t=>`<option value="${t.id}" ${f===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label></div></div>` + timeline(list, true);
 }
 function adminTeams(){
@@ -893,7 +1001,7 @@ function adminExport(){
 /* ───────── 이벤트 ───────── */
 document.addEventListener("click", async e=>{
   const tab = e.target.closest("[data-tab]");
-  if(tab){ saveDraft(); S.tab=tab.dataset.tab; saveAuth(); render(); window.scrollTo(0,0); return; }
+  if(tab){ saveDraft(); if(tab.dataset.new && S.editId) exitEdit({rerender:false}); S.tab=tab.dataset.tab; saveAuth(); render(); window.scrollTo(0,0); return; }
   const pv = e.target.closest("[data-pvtab]");
   if(pv){ S.pvTab=pv.dataset.pvtab; render(); window.scrollTo(0,0); return; }
   const el = e.target.closest("[data-act]"); if(!el) return;
@@ -905,6 +1013,15 @@ document.addEventListener("click", async e=>{
     if(act==="pv-open"){ S.viewAs=el.dataset.id; S.pvTab="home"; render(); window.scrollTo(0,0); return; }
     if(act==="pv-exit"){ S.viewAs=null; render(); window.scrollTo(0,0); return; }
     if(act==="exset"){ S.exSet=el.dataset.k; render(); return; }
+    if(act==="edit-session"){ const s=(S.data?.sessions||[]).find(x=>x.id===el.dataset.id); if(s) startEdit(s); return; }
+    if(act==="cancel-edit"){ exitEdit({records:true}); toast("수정을 취소했습니다. 원래 기록은 그대로입니다."); return; }
+    if(act==="delreq-list"){ S.filterTeam="delreq"; S.tab="feed"; saveAuth(); render(); window.scrollTo(0,0); return; }
+    if(act==="delreq-open"){ S.delReq=el.dataset.id; render(); $("#dr-"+el.dataset.id)?.focus(); return; }
+    if(act==="delreq-close"){ S.delReq=null; render(); return; }
+    if(act==="delreq-cancel"){ const tid=await rpc("mm_team_cancel_delete",{p_code:S.code,p_pin:S.pin,p_id:el.dataset.id}); ping(tid); await refresh(); toast("삭제 요청을 거뒀습니다."); return; }
+    if(act==="delreq-approve"){ if(!confirm("학생 요청대로 이 활동기록과 댓글을 지울까요? 되돌릴 수 없습니다.")) return;
+      await rpc("mm_admin_resolve_delete",{p_pin:S.pin,p_id:el.dataset.id,p_approve:true}); await refresh(); toast("요청대로 삭제했습니다."); return; }
+    if(act==="delreq-reject"){ await rpc("mm_admin_resolve_delete",{p_pin:S.pin,p_id:el.dataset.id,p_approve:false}); await refresh(); toast("요청을 반려했습니다. 기록은 그대로 남습니다."); return; }
     if(act==="practice"){ S.practice={...(S.practice||{}),[el.dataset.i]:+el.dataset.v}; store.set(practiceKey(),S.practice); const y=window.scrollY; render(); window.scrollTo(0,y); return; }
     if(act==="rm-photo"){ const k=el.dataset.kind; URL.revokeObjectURL(S.draft[k][+el.dataset.i].url); S.draft[k].splice(+el.dataset.i,1); updateThumbs(k); saveDraftPhotos(); return; }
     if(act==="del-session" && confirm("이 활동기록과 댓글을 삭제할까요?")){ await rpc("mm_admin_delete_session",{p_pin:S.pin,p_id:el.dataset.id}); await refresh(); toast("삭제했습니다."); }
@@ -982,8 +1099,9 @@ document.addEventListener("submit", async e=>{
     if(kind==="session"){
       for(const k of ["face","output"]) if(!S.draft[k].length){ const d=$("#drop-"+k); d.classList.add("bad"); d.scrollIntoView({block:"center"}); throw new Error(`${PHOTO_KINDS[k].label}을 1장 이상 올려 주세요.`); }
       if(!$("#w-consent").checked) throw new Error("사진 촬영·보관 동의에 체크해 주세요.");
+      const ed = editingSession();
       const st=$("#w-status"); st.textContent="사진 올리는 중…";
-      const urls=[]; for(const k of ["face","output"]) for(const p of S.draft[k]) urls.push({kind:k, url:await uploadPhoto(S.data.team.id, p.blob, k)});
+      const urls=[]; for(const k of ["face","output"]) for(const p of S.draft[k]) urls.push({kind:k, url: p.existing ? p.url : await uploadPhoto(S.data.team.id, p.blob, k)});
       st.textContent="저장하는 중…";
       const self_rating={}, mentor_rating={}, gas={};
       RUBRIC.forEach(a=>{ const s=radio("self-"+a.key), m=radio("mentor-"+a.key); if(s) self_rating[a.key]=s; if(m) mentor_rating[a.key]=m; });
@@ -993,10 +1111,22 @@ document.addEventListener("submit", async e=>{
       const p = { session_date:$("#w-date").value, minutes:+$("#w-min").value, mode:$("#w-mode").value, place:$("#w-place").value.trim(),
         topic:$("#w-topic").value.trim(), unit:$("#w-unit").value.trim(), content:$("#w-content").value.trim(), output_link:$("#w-link").value.trim(),
         difficulty:$("#w-diff").value.trim(), next_plan:$("#w-next").value.trim(), photos:urls, self_rating, mentor_rating, gas, narrative, author:$("#w-author").value };
-      const r = await rpc("mm_team_add_session",{p_code:S.code,p_pin:S.pin,p});
-      ["face","output"].forEach(k=>S.draft[k].forEach(p=>URL.revokeObjectURL(p.url))); S.draft={face:[],output:[]};
+      const r = ed ? await rpc("mm_team_update_session",{p_code:S.code,p_pin:S.pin,p_id:ed.id,p})
+                   : await rpc("mm_team_add_session",{p_code:S.code,p_pin:S.pin,p});
       clearDraft(); idbDel(draftKey());
-      ping(r.team_id); S.tab="growth"; saveAuth(); await refresh(); toast("기록을 저장했습니다. 성장 그래프에 반영되었습니다.");
+      dropDraftPhotos();
+      S.editId = null;
+      ping(r.team_id); S.tab = ed ? "records" : "growth"; saveAuth(); await refresh();
+      toast(ed ? "기록을 고쳤습니다." : "기록을 저장했습니다. 성장 그래프에 반영되었습니다.");
+      if(ed) $("#s-"+ed.id)?.scrollIntoView({block:"center"});
+    }
+    if(kind==="delreq"){
+      const id=form.dataset.id, reason=$("#dr-"+id).value.trim(); if(!reason) return;
+      const by=$("#dr-who-"+id).value;
+      const tid = await rpc("mm_team_request_delete",{p_code:S.code,p_pin:S.pin,p_id:id,p_by:by,p_reason:reason});
+      S.delReq=null; ping(tid); await refresh();
+      toast("삭제 요청을 보냈습니다. 교수자가 확인한 뒤 처리됩니다.");
+      return;
     }
     if(kind==="comment"){
       const id=form.dataset.id, body=$("#c-"+id).value.trim(); if(!body) return;
